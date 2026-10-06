@@ -40,10 +40,10 @@ dependencies = [
 fast = ["orjson>=3.9"]
 
 [project.urls]
-Homepage = "https://github.com/The-Swarm-Corporation/ModelGate"
-Documentation = "https://github.com/The-Swarm-Corporation/ModelGate#readme"
-Repository = "https://github.com/The-Swarm-Corporation/ModelGate"
-Issues = "https://github.com/The-Swarm-Corporation/ModelGate/issues"
+Homepage = "https://github.com/The-Swarm-Corporation/RouteHub"
+Documentation = "https://github.com/The-Swarm-Corporation/RouteHub#readme"
+Repository = "https://github.com/The-Swarm-Corporation/RouteHub"
+Issues = "https://github.com/The-Swarm-Corporation/RouteHub/issues"
 
 [build-system]
 requires = ["hatchling>=1.27"]

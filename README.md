@@ -10,7 +10,8 @@
 
 <p align="left">
   <a href="https://swarms.ai"><img src="https://img.shields.io/badge/Built%20by-Swarms.ai-3670A0?style=for-the-badge" alt="Built by Swarms.ai"></a>
-  <a href="https://github.com/The-Swarm-Corporation/ModelGate"><img src="https://img.shields.io/github/stars/The-Swarm-Corporation/ModelGate?style=for-the-badge&color=3670A0" alt="GitHub stars"></a>
+  <a href="https://pypi.org/project/routehub/"><img src="https://img.shields.io/pypi/v/routehub?style=for-the-badge&color=3670A0" alt="PyPI version"></a>
+  <a href="https://github.com/The-Swarm-Corporation/RouteHub"><img src="https://img.shields.io/github/stars/The-Swarm-Corporation/RouteHub?style=for-the-badge&color=3670A0" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-3670A0?style=for-the-badge" alt="License: Apache 2.0"></a>
   <a href="https://www.python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3670A0?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
   <a href="https://github.com/openai/openai-python"><img src="https://img.shields.io/badge/Built%20on-OpenAI%20SDK-3670A0?style=for-the-badge&logo=openai&logoColor=white" alt="Built on the OpenAI SDK"></a>
@@ -22,14 +23,14 @@
 
 ## Quickstart
 
-Install from GitHub:
+Install from PyPI:
 
 ```bash
-uv add git+https://github.com/The-Swarm-Corporation/ModelGate
+pip install routehub
 # or
-pip install git+https://github.com/The-Swarm-Corporation/ModelGate
+uv add routehub
 # with orjson for faster JSON handling
-pip install "routehub[fast] @ git+https://github.com/The-Swarm-Corporation/ModelGate"
+pip install "routehub[fast]"
 ```
 
 Set a provider key and make a call:
@@ -371,6 +372,7 @@ Counting uses tiktoken with the model's encoding, or `o200k_base` for models tik
 
 | litellm | RouteHub |
 |---|---|
+| `pip install litellm` | `pip install routehub` |
 | `from litellm import completion, acompletion, embedding` | `from routehub import completion, acompletion, embedding` |
 | `from litellm.utils import get_model_info, supports_vision` | `from routehub.utils import get_model_info, supports_vision` |
 | `from litellm.exceptions import AuthenticationError` | `from routehub.exceptions import AuthenticationError` |
