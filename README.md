@@ -386,11 +386,6 @@ Other differences to plan for:
 - Requests to OpenAI with `max_tokens` are sent as `max_completion_tokens`, which every current OpenAI chat model accepts and reasoning models require.
 - litellm-only keyword arguments such as `metadata` and `caching` are accepted and ignored.
 
-## Limitations
-
-- Not yet supported: Vertex AI, AWS Bedrock, Cohere's native API, the OpenAI Responses API, image generation, audio and batch APIs.
-- Claude 5 models accept only adaptive thinking, and ModelGate currently maps `reasoning_effort` to a fixed thinking budget, which those models reject. Until this is fixed, pass `thinking={"type": "adaptive"}` for Claude 5.
-- Model metadata requires the model to be listed by OpenRouter or registered with `register_model`. Models offered by a single provider only, such as `groq/llama-3.3-70b-versatile`, raise `ModelNotMappedError` until registered.
 
 ## Development
 
