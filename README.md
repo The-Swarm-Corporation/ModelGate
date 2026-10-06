@@ -18,7 +18,7 @@
   <a href="https://discord.gg/EamjgSaEQf"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**The enterprise LLM gateway from Swarms.** One API for 20+ model providers, built on the official OpenAI SDK. ModelGate is a drop-in replacement for litellm that imports in 5.5 ms instead of a second, adds almost nothing to each call, and installs a third of the packages.
+**ModelGate is the Swarms LLM gateway, built for raw speed.** litellm is slow: importing it takes over a second, loads 2,332 modules and calls GitHub before your code runs. ModelGate imports in 5.5 ms (about 190x faster), adds 0.004 ms to each call against litellm's 0.74 ms, and reaches 20+ providers through the official OpenAI SDK with the same function names. See [Performance](#performance).
 
 ## Quickstart
 
