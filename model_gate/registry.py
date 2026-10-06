@@ -78,8 +78,8 @@ __all__ = [
     "clear_model_cache",
     "get_max_tokens",
     "get_model_info",
-    "model_cost",
-    "model_list",
+    "model_cost",  # noqa: F822  served by the module __getattr__
+    "model_list",  # noqa: F822  served by the module __getattr__
     "register_model",
     *_SUPPORT_FLAGS,
 ]

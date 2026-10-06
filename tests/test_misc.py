@@ -37,10 +37,20 @@ class TestJson:
     @pytest.mark.parametrize("value", [None, "false"])
     def test_round_trip_matches_either_way(self, monkeypatch, value):
         module = self.reload(monkeypatch, value)
-        data = {"a": [1, 2.5, None, True], "b": {"c": "é"}, 1: "int key", "big": 2**70}
+        data = {
+            "a": [1, 2.5, None, True],
+            "b": {"c": "é"},
+            1: "int key",
+            "big": 2**70,
+        }
         encoded = module.dumps(data)
         assert isinstance(encoded, bytes)
-        assert module.loads(encoded) == {"a": [1, 2.5, None, True], "b": {"c": "é"}, "1": "int key", "big": 2**70}
+        assert module.loads(encoded) == {
+            "a": [1, 2.5, None, True],
+            "b": {"c": "é"},
+            "1": "int key",
+            "big": 2**70,
+        }
         assert module.dumps_str({"x": 1}) == '{"x":1}'
         assert module.loads('{"y": 2}') == {"y": 2}
 
@@ -56,31 +66,57 @@ class TestTokenizer:
         assert isinstance(tokens, list) and 1 <= len(tokens) <= 4
 
     def test_encode_falls_back_to_an_estimate(self, monkeypatch):
-        monkeypatch.setattr(tokenizer, "_encoding_for", lambda model: None)
+        monkeypatch.setattr(
+            tokenizer, "_encoding_for", lambda model: None
+        )
         assert len(mg.encode(model="anything", text="a" * 40)) == 10
 
     def test_unknown_models_use_the_default_encoding(self):
-        assert mg.encode(model="claude-sonnet-4-6", text="hi") == mg.encode(model="gpt-4o", text="hi")
+        assert mg.encode(
+            model="claude-sonnet-4-6", text="hi"
+        ) == mg.encode(model="gpt-4o", text="hi")
 
     def test_custom_tokenizer(self):
         class Words:
             def encode(self, text):
                 return text.split()
 
-        assert mg.encode(text="a b c", custom_tokenizer=Words()) == ["a", "b", "c"]
-        assert mg.encode(text="a b", custom_tokenizer={"tokenizer": Words()}) == ["a", "b"]
+        assert mg.encode(text="a b c", custom_tokenizer=Words()) == [
+            "a",
+            "b",
+            "c",
+        ]
+        assert mg.encode(
+            text="a b", custom_tokenizer={"tokenizer": Words()}
+        ) == ["a", "b"]
 
     def test_decode_round_trips(self):
-        assert mg.decode(model="gpt-4o", tokens=mg.encode(model="gpt-4o", text="round trip")) == "round trip"
+        assert (
+            mg.decode(
+                model="gpt-4o",
+                tokens=mg.encode(model="gpt-4o", text="round trip"),
+            )
+            == "round trip"
+        )
 
     def test_token_counter_for_text_and_messages(self):
-        assert mg.token_counter(model="gpt-4o", text="hello world") == len(mg.encode("gpt-4o", "hello world"))
+        assert mg.token_counter(
+            model="gpt-4o", text="hello world"
+        ) == len(mg.encode("gpt-4o", "hello world"))
         messages = [
             {"role": "system", "content": "Be brief."},
-            {"role": "user", "content": [{"type": "text", "text": "Hi"}, {"type": "image_url", "image_url": {"url": "x"}}]},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Hi"},
+                    {"type": "image_url", "image_url": {"url": "x"}},
+                ],
+            },
         ]
         count = mg.token_counter(model="gpt-4o", messages=messages)
-        text_only = len(mg.encode("gpt-4o", "Be brief.")) + len(mg.encode("gpt-4o", "Hi"))
+        text_only = len(mg.encode("gpt-4o", "Be brief.")) + len(
+            mg.encode("gpt-4o", "Hi")
+        )
         assert count == text_only + 2 * 3 + 3
 
     def test_empty_messages_count_zero(self):
@@ -89,7 +125,11 @@ class TestTokenizer:
 
 class TestLazyImport:
     def run(self, code):
-        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+        )
         assert result.returncode == 0, result.stderr
         return result.stdout.strip()
 
@@ -113,7 +153,12 @@ class TestLazyImport:
             mg.not_a_real_name
 
     def test_dir_lists_lazy_names(self):
-        assert {"completion", "acompletion", "embedding", "get_model_info"} <= set(dir(mg))
+        assert {
+            "completion",
+            "acompletion",
+            "embedding",
+            "get_model_info",
+        } <= set(dir(mg))
 
 
 class TestExceptions:
@@ -135,12 +180,22 @@ class TestExceptions:
         assert issubclass(gate, sdk)
 
     def test_constructible_without_a_response(self):
-        error = mg.RateLimitError("slow down", llm_provider="groq", model="m")
-        assert error.status_code == 429 and error.llm_provider == "groq" and error.model == "m"
+        error = mg.RateLimitError(
+            "slow down", llm_provider="groq", model="m"
+        )
+        assert (
+            error.status_code == 429
+            and error.llm_provider == "groq"
+            and error.model == "m"
+        )
         assert str(error) == "slow down"
 
     def test_litellm_style_import_paths(self):
-        from model_gate.exceptions import AuthenticationError, BadRequestError, InternalServerError
+        from model_gate.exceptions import (
+            AuthenticationError,
+            BadRequestError,
+            InternalServerError,
+        )
 
         assert AuthenticationError is mg.AuthenticationError
         assert BadRequestError is mg.BadRequestError
@@ -148,10 +203,20 @@ class TestExceptions:
 
     @pytest.mark.parametrize(
         "status, cls",
-        [(400, mg.BadRequestError), (401, mg.AuthenticationError), (413, mg.ContextWindowExceededError), (418, mg.APIError), (502, mg.InternalServerError), (529, mg.ServiceUnavailableError)],
+        [
+            (400, mg.BadRequestError),
+            (401, mg.AuthenticationError),
+            (413, mg.ContextWindowExceededError),
+            (418, mg.APIError),
+            (502, mg.InternalServerError),
+            (529, mg.ServiceUnavailableError),
+        ],
     )
     def test_exception_for_status(self, status, cls):
-        assert type(exceptions.exception_for_status(status, "msg")) is cls
+        assert (
+            type(exceptions.exception_for_status(status, "msg"))
+            is cls
+        )
 
     def test_map_exception_leaves_other_errors_alone(self):
         error = KeyError("x")
@@ -165,7 +230,9 @@ class TestStreamWrappers:
         from model_gate.streaming import ChatStream
 
         closed = []
-        stream = ChatStream(iter([1, 2]), lambda: closed.append(True), "p", "m")
+        stream = ChatStream(
+            iter([1, 2]), lambda: closed.append(True), "p", "m"
+        )
         assert list(stream) == [1, 2]
         stream.close()
         assert closed == [True]
@@ -176,7 +243,9 @@ class TestStreamWrappers:
 
         def chunks():
             yield 1
-            raise httpx.ReadTimeout("stalled", request=httpx.Request("GET", "https://x"))
+            raise httpx.ReadTimeout(
+                "stalled", request=httpx.Request("GET", "https://x")
+            )
 
         stream = ChatStream(chunks(), None, "openai", "gpt-4o")
         assert next(stream) == 1

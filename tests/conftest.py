@@ -107,7 +107,11 @@ CATALOG = [
             "context_length": 128000,
             "max_completion_tokens": 16000,
         },
-        "supported_parameters": ["tools", "tool_choice", "temperature"],
+        "supported_parameters": [
+            "tools",
+            "tool_choice",
+            "temperature",
+        ],
         "reasoning": None,
     },
 ]
@@ -160,7 +164,9 @@ def no_backoff(monkeypatch):
     import model_gate.main as main
 
     monkeypatch.setattr(main, "_backoff", lambda attempt: 0)
-    monkeypatch.setattr(main, "_retry_delay", lambda response, attempt: 0)
+    monkeypatch.setattr(
+        main, "_retry_delay", lambda response, attempt: 0
+    )
 
 
 class Recorder:
@@ -235,7 +241,9 @@ def mock_openai(mock_http):
     def build(*responses, is_async=False):
         import openai
 
-        http_client, recorder = mock_http(*responses, is_async=is_async)
+        http_client, recorder = mock_http(
+            *responses, is_async=is_async
+        )
         cls = openai.AsyncOpenAI if is_async else openai.OpenAI
         client = cls(
             api_key="test",

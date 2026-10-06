@@ -28,6 +28,8 @@ Install from GitHub:
 uv add git+https://github.com/The-Swarm-Corporation/ModelGate
 # or
 pip install git+https://github.com/The-Swarm-Corporation/ModelGate
+# with orjson for faster JSON handling
+pip install "model-gate[fast] @ git+https://github.com/The-Swarm-Corporation/ModelGate"
 ```
 
 Set a provider key and make a call:
@@ -82,7 +84,7 @@ response = asyncio.run(
 | **Predictable errors** | Every provider failure is raised as a typed exception (`RateLimitError`, `ContextWindowExceededError`, `AuthenticationError` and so on) carrying the status code, provider and model. Each subclasses the matching OpenAI SDK exception, so existing handlers keep working. |
 | **Usage and cost visibility** | Token usage comes back in one shape for every provider, including cached input tokens and, where the provider reports them, reasoning tokens. `get_model_info` returns per-token prices, so spend can be computed per call. |
 | **Live model catalog** | `get_model_info` reads context windows, output limits, prices and capabilities from OpenRouter's live model list, and `get_all_models` queries each provider's own models API. Both cache for five minutes, there is no bundled data file to go stale, and private or fine-tuned models can be registered alongside. |
-| **Small supply-chain surface** | Two direct dependencies, `openai` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs. |
+| **Small supply-chain surface** | Three direct dependencies, `openai`, `pydantic` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs. |
 | **Testable** | `mock_response` returns realistic responses, streams included, without a network call or an API key. ModelGate itself ships with 231 offline tests. |
 | **Async throughout** | `acompletion`, `aembedding`, async streams and async model listing, with HTTP clients cached per event loop. |
 | **litellm-compatible** | The same function names and module paths (`model_gate.utils`, `model_gate.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm). |
@@ -277,7 +279,7 @@ Also per call: `api_key`, `base_url` or `api_base`, `api_version` (Azure), `cust
 | Variable | Effect |
 |---|---|
 | Provider keys and bases | See [Supported providers](#supported-providers). |
-| `MODEL_GATE_USE_ORJSON` | ModelGate uses `orjson` for JSON when it is installed. Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
+| `MODEL_GATE_USE_ORJSON` | ModelGate uses `orjson` for JSON when it is installed (the `fast` extra). Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
 
 ## Error handling
 
@@ -392,8 +394,9 @@ Other differences to plan for:
 ```bash
 uv sync
 uv run pytest                        # 231 offline tests, no API keys needed
-uv run --with orjson pytest          # with orjson installed
+uv run --extra fast pytest           # with orjson installed
 uv run --with "openai<3" pytest      # against openai 2.x
+uv run ruff check .                  # lint
 ```
 
 `tests/live_smoke.py` exercises real providers and needs their API keys in the environment:
