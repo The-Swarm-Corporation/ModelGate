@@ -1088,7 +1088,8 @@ def completion(
         logit_bias (Optional[dict]): Token bias map.
         user (Optional[str]): End-user identifier.
         reasoning_effort (Optional[ReasoningEffort]): Reasoning depth; mapped
-            to a thinking budget for Claude.
+            to Claude thinking: adaptive effort on Claude 5 and Opus 4.7
+            and later, a token budget on older models.
         verbosity (Optional[str]): Output verbosity for models that support it.
         response_format (Optional[Union[dict, type]]): Output format, or a
             pydantic model class for JSON-schema output.
