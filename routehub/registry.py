@@ -10,13 +10,13 @@ import threading
 import time
 from typing import Dict, List, Optional, Tuple, Union
 
-logger = logging.getLogger("model_gate")
+logger = logging.getLogger("routehub")
 
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 CACHE_TTL_SECONDS = 300
 TIMEOUT_SECONDS = 10
 
-# ModelGate provider to OpenRouter vendor prefix.
+# RouteHub provider to OpenRouter vendor prefix.
 _VENDORS = {
     "openai": "openai",
     "azure": "openai",
@@ -91,14 +91,14 @@ def _fetch() -> List[dict]:
     Returns:
         List[dict]: The raw model entries, or an empty list on failure.
     """
-    from model_gate._http import httpx
+    from routehub._http import httpx
 
     try:
         response = httpx.get(
             OPENROUTER_MODELS_URL, timeout=TIMEOUT_SECONDS
         )
         response.raise_for_status()
-        from model_gate._json import loads
+        from routehub._json import loads
 
         return loads(response.content).get("data") or []
     except Exception as error:
@@ -272,7 +272,7 @@ def _candidates(
     Returns:
         List[str]: Lowercased lookup keys.
     """
-    from model_gate.providers import split_model
+    from routehub.providers import split_model
 
     lowered = model.lower()
     if lowered.startswith("openrouter/"):
@@ -377,7 +377,7 @@ def __getattr__(name: str):
         catalog = _ensure_catalog()
         return ModelList([*catalog, *_registered])
     raise AttributeError(
-        f"module 'model_gate.registry' has no attribute {name!r}"
+        f"module 'routehub.registry' has no attribute {name!r}"
     )
 
 
@@ -423,7 +423,7 @@ def get_model_info(
             f"This model isn't mapped yet. model={model}, "
             f"custom_llm_provider={custom_llm_provider}. "
             "It is not in OpenRouter's model list; add it with "
-            "model_gate.register_model()."
+            "routehub.register_model()."
         )
     key, entry = found
     info = dict(entry)

@@ -2,7 +2,7 @@
 
 from typing import Any, AsyncIterator, Callable, Iterator, Optional
 
-from model_gate.exceptions import map_exception
+from routehub.exceptions import map_exception
 
 
 class ChatStream:

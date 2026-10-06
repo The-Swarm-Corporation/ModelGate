@@ -10,9 +10,9 @@ import pytest
 from conftest import chat_completion
 from pydantic import BaseModel
 
-import model_gate as mg
-import model_gate.main as main
-from model_gate._http import httpx
+import routehub as rh
+import routehub.main as main
+from routehub._http import httpx
 
 USER = [{"role": "user", "content": "Hi"}]
 
@@ -69,7 +69,7 @@ def event_stream(*deltas, usage=True):
 class TestBasics:
     def test_returns_openai_chat_completion(self, mock_openai):
         client, recorder = mock_openai(ok(content="Hello"))
-        response = mg.completion(
+        response = rh.completion(
             model="gpt-5.4-mini", messages=USER, client=client
         )
         assert isinstance(response, openai.types.chat.ChatCompletion)
@@ -80,7 +80,7 @@ class TestBasics:
 
     def test_provider_prefix_is_stripped(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile",
             messages=USER,
             client=client,
@@ -93,7 +93,7 @@ class TestBasics:
         client, _ = mock_openai(
             ok(content="144", reasoning_content="12 * 12")
         )
-        response = mg.completion(
+        response = rh.completion(
             model="deepseek/deepseek-reasoner",
             messages=USER,
             client=client,
@@ -105,43 +105,43 @@ class TestBasics:
 
     def test_model_dump_works_like_litellm(self, mock_openai):
         client, _ = mock_openai(ok(content="Hi"))
-        dumped = mg.completion(
+        dumped = rh.completion(
             model="gpt-4o", messages=USER, client=client
         ).model_dump()
         assert dumped["choices"][0]["message"]["content"] == "Hi"
 
     def test_requires_model_and_messages(self):
-        with pytest.raises(mg.BadRequestError):
-            mg.completion(model="gpt-5.4-mini", messages=[])
-        with pytest.raises(mg.BadRequestError):
-            mg.completion(model="", messages=USER)
+        with pytest.raises(rh.BadRequestError):
+            rh.completion(model="gpt-5.4-mini", messages=[])
+        with pytest.raises(rh.BadRequestError):
+            rh.completion(model="", messages=USER)
 
     def test_unknown_provider_is_rejected(self):
-        with pytest.raises(mg.BadRequestError, match="not supported"):
-            mg.completion(model="mystery-model", messages=USER)
+        with pytest.raises(rh.BadRequestError, match="not supported"):
+            rh.completion(model="mystery-model", messages=USER)
 
     def test_missing_api_key_fails_before_any_request(
         self, monkeypatch
     ):
         monkeypatch.delenv("GROQ_API_KEY")
         with pytest.raises(
-            mg.AuthenticationError, match="GROQ_API_KEY"
+            rh.AuthenticationError, match="GROQ_API_KEY"
         ):
-            mg.completion(
+            rh.completion(
                 model="groq/llama-3.3-70b-versatile", messages=USER
             )
 
     def test_reasoning_effort_signature_lists_values(self):
         annotation = (
-            inspect.signature(mg.completion)
+            inspect.signature(rh.completion)
             .parameters["reasoning_effort"]
             .annotation
         )
         assert (
             typing.get_args(typing.get_args(annotation)[0])
-            == mg.REASONING_EFFORTS
+            == rh.REASONING_EFFORTS
         )
-        assert mg.get_reasoning_efforts() == (
+        assert rh.get_reasoning_efforts() == (
             "none",
             "minimal",
             "low",
@@ -152,12 +152,12 @@ class TestBasics:
 
     def test_completion_and_acompletion_share_a_signature(self):
         assert (
-            inspect.signature(mg.acompletion).parameters.keys()
-            == inspect.signature(mg.completion).parameters.keys()
+            inspect.signature(rh.acompletion).parameters.keys()
+            == inspect.signature(rh.completion).parameters.keys()
         )
 
     def test_settings_are_parameters_with_documented_defaults(self):
-        params = inspect.signature(mg.completion).parameters
+        params = inspect.signature(rh.completion).parameters
         assert params["drop_params"].default is False
         assert params["num_retries"].default is None
         assert params["ssl_verify"].default is True
@@ -170,7 +170,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             max_tokens=50,
@@ -181,7 +181,7 @@ class TestRequestShaping:
 
     def test_other_providers_keep_max_tokens(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile",
             messages=USER,
             max_tokens=50,
@@ -193,7 +193,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-5.4-mini",
             messages=USER,
             temperature=0.2,
@@ -213,7 +213,7 @@ class TestRequestShaping:
 
     def test_reasoning_models_keep_temperature_one(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="o3",
             messages=USER,
             temperature=1,
@@ -226,7 +226,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-5.4-mini",
             messages=USER,
             temperature=0.2,
@@ -238,7 +238,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             reasoning_effort="high",
@@ -253,7 +253,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-5.4-mini",
             messages=USER,
             reasoning_effort="None",
@@ -265,7 +265,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             stream_options={"include_usage": True},
@@ -289,7 +289,7 @@ class TestRequestShaping:
             },
         }
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             tools=[tool],
@@ -329,7 +329,7 @@ class TestRequestShaping:
                 "cache_control": {"type": "ephemeral"},
             }
         ]
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=messages,
             tools=tools,
@@ -358,7 +358,7 @@ class TestRequestShaping:
                 ],
             }
         ]
-        mg.completion(
+        rh.completion(
             model="openrouter/anthropic/claude-sonnet-4.6",
             messages=messages,
             client=client,
@@ -380,7 +380,7 @@ class TestRequestShaping:
             },
             {"role": "user", "content": "More"},
         ]
-        mg.completion(
+        rh.completion(
             model="deepseek/deepseek-chat",
             messages=history,
             client=client,
@@ -398,7 +398,7 @@ class TestRequestShaping:
             value: int
 
         client, recorder = mock_openai(ok(content='{"value": 4}'))
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             response_format=Answer,
@@ -418,14 +418,14 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile",
             messages=USER,
             top_k=5,
             client=client,
         )
         assert recorder.last_json["top_k"] == 5
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile",
             messages=USER,
             top_k=5,
@@ -436,7 +436,7 @@ class TestRequestShaping:
 
     def test_extra_body_is_always_sent(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             extra_body={"custom": True},
@@ -447,7 +447,7 @@ class TestRequestShaping:
 
     def test_litellm_only_kwargs_are_ignored(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             caching=False,
@@ -466,7 +466,7 @@ class TestRequestShaping:
         self, mock_openai
     ):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             stop=["END"],
@@ -483,7 +483,7 @@ class TestRequestShaping:
 
     def test_extra_headers_and_headers_are_merged(self, mock_openai):
         client, recorder = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             extra_headers={"x-a": "1"},
@@ -506,7 +506,7 @@ class TestStreaming:
                 {"content": "lo"},
             )
         )
-        stream = mg.completion(
+        stream = rh.completion(
             model="gpt-4o",
             messages=USER,
             stream=True,
@@ -531,7 +531,7 @@ class TestStreaming:
     def test_stream_requests_stream_options(self, mock_openai):
         client, recorder = mock_openai(event_stream({"content": "x"}))
         list(
-            mg.completion(
+            rh.completion(
                 model="gpt-4o",
                 messages=USER,
                 stream=True,
@@ -546,7 +546,7 @@ class TestStreaming:
 
     def test_stream_is_a_context_manager(self, mock_openai):
         client, _ = mock_openai(event_stream({"content": "x"}))
-        with mg.completion(
+        with rh.completion(
             model="gpt-4o", messages=USER, stream=True, client=client
         ) as stream:
             first = next(iter(stream))
@@ -557,7 +557,7 @@ class TestStreaming:
             event_stream({"content": "As"}, {"content": "ync"}),
             is_async=True,
         )
-        stream = await mg.acompletion(
+        stream = await rh.acompletion(
             model="gpt-4o", messages=USER, stream=True, client=client
         )
         text = ""
@@ -572,7 +572,7 @@ class TestAsync:
         client, recorder = mock_openai(
             ok(content="Async hello"), is_async=True
         )
-        response = await mg.acompletion(
+        response = await rh.acompletion(
             model="gpt-4o",
             messages=USER,
             max_tokens=10,
@@ -588,14 +588,14 @@ class TestAsync:
             ),
             is_async=True,
         )
-        with pytest.raises(mg.RateLimitError):
-            await mg.acompletion(
+        with pytest.raises(rh.RateLimitError):
+            await rh.acompletion(
                 model="gpt-4o", messages=USER, client=client
             )
 
     async def test_acompletion_validates_like_completion(self):
-        with pytest.raises(mg.BadRequestError):
-            await mg.acompletion(model="gpt-4o", messages=[])
+        with pytest.raises(rh.BadRequestError):
+            await rh.acompletion(model="gpt-4o", messages=[])
 
 
 class TestErrors:
@@ -605,33 +605,33 @@ class TestErrors:
             (
                 400,
                 "Invalid value for temperature",
-                mg.BadRequestError,
+                rh.BadRequestError,
             ),
             (
                 400,
                 "This model's maximum context length is 128000 tokens",
-                mg.ContextWindowExceededError,
+                rh.ContextWindowExceededError,
             ),
             (
                 400,
                 "Your request was rejected by our safety system: content_policy_violation",
-                mg.ContentPolicyViolationError,
+                rh.ContentPolicyViolationError,
             ),
             (
                 401,
                 "Incorrect API key provided",
-                mg.AuthenticationError,
+                rh.AuthenticationError,
             ),
             (
                 403,
                 "Project does not have access",
-                mg.PermissionDeniedError,
+                rh.PermissionDeniedError,
             ),
-            (404, "The model does not exist", mg.NotFoundError),
-            (422, "Unprocessable", mg.UnprocessableEntityError),
-            (429, "Rate limit reached", mg.RateLimitError),
-            (500, "Server error", mg.InternalServerError),
-            (503, "Overloaded", mg.ServiceUnavailableError),
+            (404, "The model does not exist", rh.NotFoundError),
+            (422, "Unprocessable", rh.UnprocessableEntityError),
+            (429, "Rate limit reached", rh.RateLimitError),
+            (500, "Server error", rh.InternalServerError),
+            (503, "Overloaded", rh.ServiceUnavailableError),
         ],
     )
     def test_status_codes_map_to_gate_exceptions(
@@ -643,7 +643,7 @@ class TestErrors:
             )
         )
         with pytest.raises(expected) as raised:
-            mg.completion(
+            rh.completion(
                 model="gpt-4o", messages=USER, client=client
             )
         error = raised.value
@@ -660,7 +660,7 @@ class TestErrors:
             )
         )
         with pytest.raises(openai.AuthenticationError):
-            mg.completion(
+            rh.completion(
                 model="gpt-4o", messages=USER, client=client
             )
 
@@ -670,8 +670,8 @@ class TestErrors:
                 401, json={"error": {"message": "bad key"}}
             )
         )
-        with pytest.raises(mg.AuthenticationError) as raised:
-            mg.completion(
+        with pytest.raises(rh.AuthenticationError) as raised:
+            rh.completion(
                 model="gpt-4o", messages=USER, client=client
             )
         assert isinstance(
@@ -683,8 +683,8 @@ class TestErrors:
             raise httpx.ConnectError("refused", request=request)
 
         client, _ = mock_openai(fail)
-        with pytest.raises(mg.APIConnectionError):
-            mg.completion(
+        with pytest.raises(rh.APIConnectionError):
+            rh.completion(
                 model="gpt-4o", messages=USER, client=client
             )
 
@@ -693,15 +693,15 @@ class TestErrors:
             raise httpx.ReadTimeout("too slow", request=request)
 
         client, _ = mock_openai(slow)
-        with pytest.raises(mg.Timeout):
-            mg.completion(
+        with pytest.raises(rh.Timeout):
+            rh.completion(
                 model="gpt-4o", messages=USER, client=client
             )
 
 
 class TestMockResponse:
     def test_mock_text(self):
-        response = mg.completion(
+        response = rh.completion(
             model="any-model", messages=USER, mock_response="Mocked"
         )
         assert response.choices[0].message.content == "Mocked"
@@ -710,7 +710,7 @@ class TestMockResponse:
     def test_mock_needs_no_provider_or_key(self, monkeypatch):
         monkeypatch.delenv("OPENAI_API_KEY")
         assert (
-            mg.completion(
+            rh.completion(
                 model="unknown/thing",
                 messages=USER,
                 mock_response="x",
@@ -721,7 +721,7 @@ class TestMockResponse:
         )
 
     def test_mock_stream(self):
-        stream = mg.completion(
+        stream = rh.completion(
             model="any-model",
             messages=USER,
             mock_response="a b c",
@@ -741,20 +741,20 @@ class TestMockResponse:
 
     def test_mock_exception_is_raised(self):
         with pytest.raises(ValueError, match="boom"):
-            mg.completion(
+            rh.completion(
                 model="any-model",
                 messages=USER,
                 mock_response=ValueError("boom"),
             )
 
     async def test_mock_async(self):
-        response = await mg.acompletion(
+        response = await rh.acompletion(
             model="any-model",
             messages=USER,
             mock_response="Async mock",
         )
         assert response.choices[0].message.content == "Async mock"
-        stream = await mg.acompletion(
+        stream = await rh.acompletion(
             model="any-model",
             messages=USER,
             mock_response="x y",
@@ -792,25 +792,25 @@ class TestSettings:
         return seen
 
     def test_num_retries_defaults_to_two(self, captured_client):
-        mg.completion(model="gpt-4o", messages=USER)
+        rh.completion(model="gpt-4o", messages=USER)
         assert captured_client["max_retries"] == 2
 
     def test_num_retries_is_passed_to_the_client(
         self, captured_client
     ):
-        mg.completion(model="gpt-4o", messages=USER, num_retries=5)
+        rh.completion(model="gpt-4o", messages=USER, num_retries=5)
         assert captured_client["max_retries"] == 5
 
     def test_max_retries_is_accepted_as_an_alias(
         self, captured_client
     ):
-        mg.completion(model="gpt-4o", messages=USER, max_retries=1)
+        rh.completion(model="gpt-4o", messages=USER, max_retries=1)
         assert captured_client["max_retries"] == 1
 
     def test_ssl_verify_and_credentials_are_passed(
         self, captured_client
     ):
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile",
             messages=USER,
             ssl_verify=False,
@@ -822,7 +822,7 @@ class TestSettings:
         assert captured_client["api_base"] == "https://proxy.local/v1"
 
     def test_env_key_is_used_by_default(self, captured_client):
-        mg.completion(
+        rh.completion(
             model="groq/llama-3.3-70b-versatile", messages=USER
         )
         assert captured_client["api_key"] == "test-groq_api_key"
@@ -844,27 +844,27 @@ class TestSettings:
             return original(*args, **kwargs)
 
         monkeypatch.setattr(client.chat.completions, "create", spy)
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             client=client,
             request_timeout=12.5,
         )
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             client=client,
             request_timeout=12.5,
             timeout=3,
         )
-        mg.completion(model="gpt-4o", messages=USER, client=client)
+        rh.completion(model="gpt-4o", messages=USER, client=client)
         assert seen == [12.5, 3, 600.0]
 
     def test_set_verbose_logs_to_stderr_without_secrets(
         self, mock_openai, capsys
     ):
         client, _ = mock_openai(ok())
-        mg.completion(
+        rh.completion(
             model="gpt-4o",
             messages=USER,
             client=client,
@@ -872,19 +872,19 @@ class TestSettings:
             api_key="sk-secret",
         )
         err = capsys.readouterr().err
-        assert "model_gate: openai gpt-4o" in err
+        assert "routehub: openai gpt-4o" in err
         assert "answered in" in err
         assert "sk-secret" not in err
 
     def test_quiet_by_default(self, mock_openai, capsys):
         client, _ = mock_openai(ok())
-        mg.completion(model="gpt-4o", messages=USER, client=client)
+        rh.completion(model="gpt-4o", messages=USER, client=client)
         assert capsys.readouterr().err == ""
 
 
 class TestClients:
     def test_clients_are_cached_by_settings(self):
-        from model_gate import clients
+        from routehub import clients
 
         clients._clients.clear()
         a = clients.openai_client(
@@ -915,7 +915,7 @@ class TestClients:
         assert a.max_retries == 4 and c.max_retries == 1
 
     def test_azure_builds_an_azure_client(self):
-        from model_gate import clients
+        from routehub import clients
 
         client = clients.openai_client(
             "azure",
@@ -929,7 +929,7 @@ class TestClients:
         assert isinstance(client, openai.AzureOpenAI)
 
     async def test_async_clients_are_per_event_loop(self):
-        from model_gate import clients
+        from routehub import clients
 
         a = clients.openai_client(
             "openai",
@@ -954,7 +954,7 @@ class TestClients:
 def test_own_client_needs_no_env_key(monkeypatch, mock_openai):
     monkeypatch.delenv("OPENAI_API_KEY")
     client, _ = mock_openai(ok(content="from my client"))
-    response = mg.completion(
+    response = rh.completion(
         model="gpt-4o", messages=USER, client=client
     )
     assert response.choices[0].message.content == "from my client"

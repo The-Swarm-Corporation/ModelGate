@@ -31,7 +31,7 @@ from typing import (
     Tuple,
 )
 
-logger = logging.getLogger("model_gate")
+logger = logging.getLogger("routehub")
 
 CACHE_TTL_SECONDS = 300
 TIMEOUT_SECONDS = 10
@@ -46,7 +46,7 @@ def _entry(
     """Build one model entry in the common shape.
 
     Args:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
         model (str): The model id as the provider names it.
         raw (dict): The provider's original record.
         **fields (Any): Known values for the common keys.
@@ -164,7 +164,7 @@ def _parse_openai_list(
     """Parser for OpenAI-style records that carry only ids.
 
     Args:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
 
     Returns:
         Callable[[List[dict]], List[dict]]: The parser.
@@ -571,7 +571,7 @@ class ModelSource:
     """Where and how to list one provider's models.
 
     Attributes:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
         url (str): The model-listing endpoint.
         parse (Callable[[List[dict]], List[dict]]): Turns raw records into entries.
         key_env (Tuple[str, ...]): Environment variables holding the API key;
@@ -716,7 +716,7 @@ def _source(provider: str) -> ModelSource:
     """Look up a provider's source.
 
     Args:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
 
     Returns:
         ModelSource: The source.
@@ -908,7 +908,7 @@ def _fetch_list(
     Returns:
         List[dict]: Common entries; empty when the request fails.
     """
-    from model_gate._json import loads
+    from routehub._json import loads
 
     headers, params = _headers(source, key), dict(source.params)
     records: List[dict] = []
@@ -951,7 +951,7 @@ async def _afetch_list(
     Returns:
         List[dict]: Common entries; empty when the request fails.
     """
-    from model_gate._json import loads
+    from routehub._json import loads
 
     headers, params = _headers(source, key), dict(source.params)
     records: List[dict] = []
@@ -1032,7 +1032,7 @@ def get_models(
     """List one provider's models from its API.
 
     Args:
-        provider (str): ModelGate provider name, such as "anthropic".
+        provider (str): RouteHub provider name, such as "anthropic".
         api_key (Optional[str]): API key; read from the provider's env var
             when omitted.
         timeout (float): Per-request timeout in seconds.
@@ -1042,7 +1042,7 @@ def get_models(
         List[dict]: Model entries; empty when no key is configured or the
         request fails.
     """
-    from model_gate._http import httpx
+    from routehub._http import httpx
 
     source = _source(provider)
     key = _api_key(source, api_key)
@@ -1077,7 +1077,7 @@ def get_all_models(
     Returns:
         List[dict]: Model entries from all providers, grouped by provider.
     """
-    from model_gate._http import httpx
+    from routehub._http import httpx
 
     sources, results, to_fetch = _plan(providers, refresh)
     if to_fetch:
@@ -1111,7 +1111,7 @@ async def aget_models(
     """Async form of get_models, sharing its cache.
 
     Args:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
         api_key (Optional[str]): API key; read from the provider's env var
             when omitted.
         timeout (float): Per-request timeout in seconds.
@@ -1120,7 +1120,7 @@ async def aget_models(
     Returns:
         List[dict]: Model entries.
     """
-    from model_gate._http import httpx
+    from routehub._http import httpx
 
     source = _source(provider)
     key = _api_key(source, api_key)
@@ -1152,7 +1152,7 @@ async def aget_all_models(
     Returns:
         List[dict]: Model entries from all providers, grouped by provider.
     """
-    from model_gate._http import httpx
+    from routehub._http import httpx
 
     sources, results, to_fetch = _plan(providers, refresh)
     if to_fetch:
@@ -1182,7 +1182,7 @@ def get_model(
     endpoint serving the model, with its own limits and prices.
 
     Args:
-        provider (str): ModelGate provider name.
+        provider (str): RouteHub provider name.
         model (str): The model id as the provider names it.
         api_key (Optional[str]): API key; read from the provider's env var
             when omitted.
@@ -1192,8 +1192,8 @@ def get_model(
         Optional[dict]: The model entry, or None when the provider does not
         know the model or cannot be reached.
     """
-    from model_gate._http import httpx
-    from model_gate._json import loads
+    from routehub._http import httpx
+    from routehub._json import loads
 
     source = _source(provider)
     key = _api_key(source, api_key)

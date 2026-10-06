@@ -1,6 +1,6 @@
 """JSON encoding with orjson when installed, falling back to the stdlib.
 
-Set MODEL_GATE_USE_ORJSON to 0, false, no or off to always use the stdlib json
+Set ROUTEHUB_USE_ORJSON to 0, false, no or off to always use the stdlib json
 module. The variable is read once, on first use.
 """
 
@@ -17,7 +17,7 @@ def _load_orjson() -> Any:
     Returns:
         Any: The orjson module, or None to use the stdlib.
     """
-    setting = os.environ.get("MODEL_GATE_USE_ORJSON", "")
+    setting = os.environ.get("ROUTEHUB_USE_ORJSON", "")
     if setting.strip().lower() in _OFF_VALUES:
         return None
     try:

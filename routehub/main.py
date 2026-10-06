@@ -18,9 +18,9 @@ from typing import (
     get_args,
 )
 
-from model_gate._json import dumps, loads
-from model_gate.clients import http_client, openai_client
-from model_gate.providers import PROVIDERS, get_llm_provider
+from routehub._json import dumps, loads
+from routehub.clients import http_client, openai_client
+from routehub.providers import PROVIDERS, get_llm_provider
 
 ReasoningEffort = Literal[
     "none", "minimal", "low", "medium", "high", "xhigh"
@@ -178,7 +178,7 @@ def _log(verbose: bool, message: str) -> None:
         message (str): The line to print.
     """
     if verbose:
-        print(f"model_gate: {message}", file=sys.stderr)
+        print(f"routehub: {message}", file=sys.stderr)
 
 
 def _response_format_param(response_format: Any) -> Any:
@@ -256,7 +256,7 @@ def _build_call(
     Returns:
         _Call: The resolved request.
     """
-    from model_gate.exceptions import (
+    from routehub.exceptions import (
         AuthenticationError,
         BadRequestError,
     )
@@ -548,8 +548,8 @@ def _openai_complete(call: _Call) -> Any:
     Returns:
         Any: A ChatCompletion, or a ChatStream when streaming.
     """
-    from model_gate.exceptions import map_exception
-    from model_gate.streaming import ChatStream
+    from routehub.exceptions import map_exception
+    from routehub.streaming import ChatStream
 
     request, extra_body = _openai_request(call)
     try:
@@ -579,8 +579,8 @@ async def _openai_acomplete(call: _Call) -> Any:
     Returns:
         Any: A ChatCompletion, or an AsyncChatStream when streaming.
     """
-    from model_gate.exceptions import map_exception
-    from model_gate.streaming import AsyncChatStream
+    from routehub.exceptions import map_exception
+    from routehub.streaming import AsyncChatStream
 
     request, extra_body = _openai_request(call)
     try:
@@ -643,7 +643,7 @@ def _anthropic_prepare(call: _Call) -> Tuple[str, dict, dict, bool]:
         Tuple[str, dict, dict, bool]: URL, headers, body, and whether a JSON
         schema is enforced through a forced tool call.
     """
-    from model_gate import anthropic
+    from routehub import anthropic
 
     body, json_mode = anthropic.build_request(
         call.bare,
@@ -677,9 +677,9 @@ def _anthropic_send(
     Returns:
         Any: The successful HTTP response, still open when streaming.
     """
-    from model_gate import anthropic
-    from model_gate._http import httpx
-    from model_gate.exceptions import map_exception
+    from routehub import anthropic
+    from routehub._http import httpx
+    from routehub.exceptions import map_exception
 
     stream = bool(body.get("stream"))
     attempt = 0
@@ -737,9 +737,9 @@ async def _anthropic_asend(
     Returns:
         Any: The successful HTTP response, still open when streaming.
     """
-    from model_gate import anthropic
-    from model_gate._http import httpx
-    from model_gate.exceptions import map_exception
+    from routehub import anthropic
+    from routehub._http import httpx
+    from routehub.exceptions import map_exception
 
     stream = bool(body.get("stream"))
     attempt = 0
@@ -804,8 +804,8 @@ def _anthropic_complete(call: _Call) -> Any:
     Returns:
         Any: A ChatCompletion, or a ChatStream when streaming.
     """
-    from model_gate import anthropic
-    from model_gate.streaming import ChatStream
+    from routehub import anthropic
+    from routehub.streaming import ChatStream
 
     url, headers, body, json_mode = _anthropic_prepare(call)
     client = call.client or http_client(
@@ -838,8 +838,8 @@ async def _anthropic_acomplete(call: _Call) -> Any:
     Returns:
         Any: A ChatCompletion, or an AsyncChatStream when streaming.
     """
-    from model_gate import anthropic
-    from model_gate.streaming import AsyncChatStream
+    from routehub import anthropic
+    from routehub.streaming import AsyncChatStream
 
     url, headers, body, json_mode = _anthropic_prepare(call)
     client = call.client or http_client(
@@ -971,7 +971,7 @@ def _mock_completion(
         raise mock_response
     content = str(mock_response)
     if stream:
-        from model_gate.streaming import AsyncChatStream, ChatStream
+        from routehub.streaming import AsyncChatStream, ChatStream
 
         chunks = _mock_chunks(model, content, include_usage)
         if is_async:
@@ -985,7 +985,7 @@ def _mock_completion(
 
     from openai.types.chat import ChatCompletion
 
-    from model_gate.tokenizer import _content_text
+    from routehub.tokenizer import _content_text
 
     prompt = sum(
         _estimate_tokens(_content_text(m.get("content")))
@@ -1320,7 +1320,7 @@ def _embedding_request(
         Tuple[Any, dict, str]: The embeddings resource, create() arguments,
         and the provider.
     """
-    from model_gate.exceptions import (
+    from routehub.exceptions import (
         AuthenticationError,
         BadRequestError,
     )
@@ -1418,7 +1418,7 @@ def embedding(
         Any: An OpenAI CreateEmbeddingResponse.
     """
     options = dict(locals())
-    from model_gate.exceptions import map_exception
+    from routehub.exceptions import map_exception
 
     resource, request, provider = _embedding_request(
         model,
@@ -1484,7 +1484,7 @@ async def aembedding(
         Any: An OpenAI CreateEmbeddingResponse.
     """
     options = dict(locals())
-    from model_gate.exceptions import map_exception
+    from routehub.exceptions import map_exception
 
     resource, request, provider = _embedding_request(
         model, input, dimensions, encoding_format, user, options, True

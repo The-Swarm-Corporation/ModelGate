@@ -2,8 +2,8 @@
 
 import pytest
 
-import model_gate as mg
-from model_gate.providers import PROVIDERS, split_model
+import routehub as rh
+from routehub.providers import PROVIDERS, split_model
 
 
 @pytest.mark.parametrize(
@@ -68,7 +68,7 @@ def test_custom_llm_provider_wins():
 
 
 def test_keys_and_bases_come_from_the_environment():
-    bare, provider, key, base = mg.get_llm_provider(
+    bare, provider, key, base = rh.get_llm_provider(
         "groq/llama-3.3-70b-versatile"
     )
     assert (bare, provider) == ("llama-3.3-70b-versatile", "groq")
@@ -78,16 +78,16 @@ def test_keys_and_bases_come_from_the_environment():
 
 def test_explicit_key_and_base_win(monkeypatch):
     monkeypatch.setenv("GROQ_API_BASE", "https://env.local/v1")
-    _, _, key, base = mg.get_llm_provider(
+    _, _, key, base = rh.get_llm_provider(
         "groq/x", api_key="explicit", api_base="https://arg.local/v1"
     )
     assert key == "explicit" and base == "https://arg.local/v1"
-    _, _, _, base = mg.get_llm_provider("groq/x")
+    _, _, _, base = rh.get_llm_provider("groq/x")
     assert base == "https://env.local/v1"
 
 
 def test_openai_uses_the_sdk_default_base():
-    _, provider, key, base = mg.get_llm_provider("gpt-4o")
+    _, provider, key, base = rh.get_llm_provider("gpt-4o")
     assert (
         provider == "openai"
         and key == "test-openai_api_key"
@@ -99,7 +99,7 @@ def test_fallback_key_variables(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
     assert (
-        mg.get_llm_provider("gemini/gemini-2.5-pro")[2]
+        rh.get_llm_provider("gemini/gemini-2.5-pro")[2]
         == "google-key"
     )
 
@@ -107,17 +107,17 @@ def test_fallback_key_variables(monkeypatch):
 def test_local_servers_get_a_placeholder_key_and_v1_suffix(
     monkeypatch,
 ):
-    _, _, key, base = mg.get_llm_provider("ollama/llama3")
+    _, _, key, base = rh.get_llm_provider("ollama/llama3")
     assert key == "ollama" and base == "http://localhost:11434/v1"
     monkeypatch.setenv("OLLAMA_API_BASE", "http://gpu-box:11434")
     assert (
-        mg.get_llm_provider("ollama/llama3")[3]
+        rh.get_llm_provider("ollama/llama3")[3]
         == "http://gpu-box:11434/v1"
     )
 
 
 def test_api_base_without_a_provider_means_openai_compatible():
-    bare, provider, _, base = mg.get_llm_provider(
+    bare, provider, _, base = rh.get_llm_provider(
         "my-finetune", api_base="http://vllm.local/v1"
     )
     assert (
@@ -128,10 +128,10 @@ def test_api_base_without_a_provider_means_openai_compatible():
 
 
 def test_unknown_provider_raises():
-    with pytest.raises(mg.BadRequestError, match="not supported"):
-        mg.get_llm_provider("mystery-model")
-    with pytest.raises(mg.BadRequestError):
-        mg.get_llm_provider("x", custom_llm_provider="bedrock")
+    with pytest.raises(rh.BadRequestError, match="not supported"):
+        rh.get_llm_provider("mystery-model")
+    with pytest.raises(rh.BadRequestError):
+        rh.get_llm_provider("x", custom_llm_provider="bedrock")
 
 
 def test_only_anthropic_is_native():

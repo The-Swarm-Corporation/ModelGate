@@ -5,10 +5,10 @@ from typing import Any, Optional
 import openai
 from openai import OpenAIError
 
-from model_gate._http import httpx
-from model_gate.registry import ModelNotMappedError
+from routehub._http import httpx
+from routehub.registry import ModelNotMappedError
 
-_PLACEHOLDER_URL = "https://model-gate.invalid/v1/chat/completions"
+_PLACEHOLDER_URL = "https://routehub.invalid/v1/chat/completions"
 
 _CONTEXT_WINDOW_PHRASES = (
     "context length",
@@ -258,7 +258,7 @@ def exception_for_status(
         body (Optional[object]): The decoded error body.
 
     Returns:
-        Exception: An instance of the matching ModelGate exception.
+        Exception: An instance of the matching RouteHub exception.
     """
     cls = _BY_STATUS.get(status_code)
     if cls is None:
@@ -281,7 +281,7 @@ def exception_for_status(
 def map_exception(
     error: BaseException, llm_provider: str = "", model: str = ""
 ) -> BaseException:
-    """Convert an OpenAI SDK error into the matching ModelGate exception.
+    """Convert an OpenAI SDK error into the matching RouteHub exception.
 
     Args:
         error (BaseException): The error raised by the SDK or HTTP layer.
@@ -289,7 +289,7 @@ def map_exception(
         model (str): Model that was called.
 
     Returns:
-        BaseException: A ModelGate exception, or the error unchanged when it
+        BaseException: A RouteHub exception, or the error unchanged when it
         is not a provider error.
     """
     if type(error).__module__ == __name__:

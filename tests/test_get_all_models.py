@@ -2,8 +2,8 @@
 
 import pytest
 
-from model_gate import get_all_models as gam
-from model_gate._http import httpx
+from routehub import get_all_models as gam
+from routehub._http import httpx
 
 ROUTES = {
     "openrouter.ai/api/v1/models": {

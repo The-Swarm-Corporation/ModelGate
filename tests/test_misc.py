@@ -7,17 +7,17 @@ import sys
 import openai
 import pytest
 
-import model_gate as mg
-from model_gate import exceptions, tokenizer
+import routehub as rh
+from routehub import exceptions, tokenizer
 
 
 class TestJson:
     def reload(self, monkeypatch, value):
         if value is None:
-            monkeypatch.delenv("MODEL_GATE_USE_ORJSON", raising=False)
+            monkeypatch.delenv("ROUTEHUB_USE_ORJSON", raising=False)
         else:
-            monkeypatch.setenv("MODEL_GATE_USE_ORJSON", value)
-        import model_gate._json as module
+            monkeypatch.setenv("ROUTEHUB_USE_ORJSON", value)
+        import routehub._json as module
 
         return importlib.reload(module)
 
@@ -55,54 +55,54 @@ class TestJson:
         assert module.loads('{"y": 2}') == {"y": 2}
 
     def teardown_method(self):
-        import model_gate._json as module
+        import routehub._json as module
 
         importlib.reload(module)
 
 
 class TestTokenizer:
     def test_encode_counts_tokens(self):
-        tokens = mg.encode(model="gpt-4o", text="hello world")
+        tokens = rh.encode(model="gpt-4o", text="hello world")
         assert isinstance(tokens, list) and 1 <= len(tokens) <= 4
 
     def test_encode_falls_back_to_an_estimate(self, monkeypatch):
         monkeypatch.setattr(
             tokenizer, "_encoding_for", lambda model: None
         )
-        assert len(mg.encode(model="anything", text="a" * 40)) == 10
+        assert len(rh.encode(model="anything", text="a" * 40)) == 10
 
     def test_unknown_models_use_the_default_encoding(self):
-        assert mg.encode(
+        assert rh.encode(
             model="claude-sonnet-4-6", text="hi"
-        ) == mg.encode(model="gpt-4o", text="hi")
+        ) == rh.encode(model="gpt-4o", text="hi")
 
     def test_custom_tokenizer(self):
         class Words:
             def encode(self, text):
                 return text.split()
 
-        assert mg.encode(text="a b c", custom_tokenizer=Words()) == [
+        assert rh.encode(text="a b c", custom_tokenizer=Words()) == [
             "a",
             "b",
             "c",
         ]
-        assert mg.encode(
+        assert rh.encode(
             text="a b", custom_tokenizer={"tokenizer": Words()}
         ) == ["a", "b"]
 
     def test_decode_round_trips(self):
         assert (
-            mg.decode(
+            rh.decode(
                 model="gpt-4o",
-                tokens=mg.encode(model="gpt-4o", text="round trip"),
+                tokens=rh.encode(model="gpt-4o", text="round trip"),
             )
             == "round trip"
         )
 
     def test_token_counter_for_text_and_messages(self):
-        assert mg.token_counter(
+        assert rh.token_counter(
             model="gpt-4o", text="hello world"
-        ) == len(mg.encode("gpt-4o", "hello world"))
+        ) == len(rh.encode("gpt-4o", "hello world"))
         messages = [
             {"role": "system", "content": "Be brief."},
             {
@@ -113,14 +113,14 @@ class TestTokenizer:
                 ],
             },
         ]
-        count = mg.token_counter(model="gpt-4o", messages=messages)
-        text_only = len(mg.encode("gpt-4o", "Be brief.")) + len(
-            mg.encode("gpt-4o", "Hi")
+        count = rh.token_counter(model="gpt-4o", messages=messages)
+        text_only = len(rh.encode("gpt-4o", "Be brief.")) + len(
+            rh.encode("gpt-4o", "Hi")
         )
         assert count == text_only + 2 * 3 + 3
 
     def test_empty_messages_count_zero(self):
-        assert mg.token_counter(messages=[]) == 0
+        assert rh.token_counter(messages=[]) == 0
 
 
 class TestLazyImport:
@@ -135,22 +135,22 @@ class TestLazyImport:
 
     def test_import_loads_nothing_heavy(self):
         out = self.run(
-            "import sys, model_gate; "
+            "import sys, routehub; "
             "print(any(m.startswith(('openai', 'tiktoken', 'httpx')) for m in sys.modules))"
         )
         assert out == "False"
 
     def test_model_lookups_never_import_the_openai_sdk(self):
         out = self.run(
-            "import sys, model_gate as mg; "
-            "mg.get_llm_provider('groq/llama-3.3-70b-versatile', api_key='k'); "
+            "import sys, routehub as rh; "
+            "rh.get_llm_provider('groq/llama-3.3-70b-versatile', api_key='k'); "
             "print('openai' in sys.modules)"
         )
         assert out == "False"
 
     def test_unknown_attribute_raises(self):
         with pytest.raises(AttributeError):
-            mg.not_a_real_name
+            rh.not_a_real_name
 
     def test_dir_lists_lazy_names(self):
         assert {
@@ -158,29 +158,29 @@ class TestLazyImport:
             "acompletion",
             "embedding",
             "get_model_info",
-        } <= set(dir(mg))
+        } <= set(dir(rh))
 
 
 class TestExceptions:
     @pytest.mark.parametrize(
         "gate, sdk",
         [
-            (mg.AuthenticationError, openai.AuthenticationError),
-            (mg.BadRequestError, openai.BadRequestError),
-            (mg.ContextWindowExceededError, openai.BadRequestError),
-            (mg.RateLimitError, openai.RateLimitError),
-            (mg.NotFoundError, openai.NotFoundError),
-            (mg.InternalServerError, openai.InternalServerError),
-            (mg.ServiceUnavailableError, openai.InternalServerError),
-            (mg.Timeout, openai.APITimeoutError),
-            (mg.APIConnectionError, openai.APIConnectionError),
+            (rh.AuthenticationError, openai.AuthenticationError),
+            (rh.BadRequestError, openai.BadRequestError),
+            (rh.ContextWindowExceededError, openai.BadRequestError),
+            (rh.RateLimitError, openai.RateLimitError),
+            (rh.NotFoundError, openai.NotFoundError),
+            (rh.InternalServerError, openai.InternalServerError),
+            (rh.ServiceUnavailableError, openai.InternalServerError),
+            (rh.Timeout, openai.APITimeoutError),
+            (rh.APIConnectionError, openai.APIConnectionError),
         ],
     )
     def test_gate_exceptions_subclass_the_sdk(self, gate, sdk):
         assert issubclass(gate, sdk)
 
     def test_constructible_without_a_response(self):
-        error = mg.RateLimitError(
+        error = rh.RateLimitError(
             "slow down", llm_provider="groq", model="m"
         )
         assert (
@@ -191,25 +191,25 @@ class TestExceptions:
         assert str(error) == "slow down"
 
     def test_litellm_style_import_paths(self):
-        from model_gate.exceptions import (
+        from routehub.exceptions import (
             AuthenticationError,
             BadRequestError,
             InternalServerError,
         )
 
-        assert AuthenticationError is mg.AuthenticationError
-        assert BadRequestError is mg.BadRequestError
-        assert InternalServerError is mg.InternalServerError
+        assert AuthenticationError is rh.AuthenticationError
+        assert BadRequestError is rh.BadRequestError
+        assert InternalServerError is rh.InternalServerError
 
     @pytest.mark.parametrize(
         "status, cls",
         [
-            (400, mg.BadRequestError),
-            (401, mg.AuthenticationError),
-            (413, mg.ContextWindowExceededError),
-            (418, mg.APIError),
-            (502, mg.InternalServerError),
-            (529, mg.ServiceUnavailableError),
+            (400, rh.BadRequestError),
+            (401, rh.AuthenticationError),
+            (413, rh.ContextWindowExceededError),
+            (418, rh.APIError),
+            (502, rh.InternalServerError),
+            (529, rh.ServiceUnavailableError),
         ],
     )
     def test_exception_for_status(self, status, cls):
@@ -221,13 +221,13 @@ class TestExceptions:
     def test_map_exception_leaves_other_errors_alone(self):
         error = KeyError("x")
         assert exceptions.map_exception(error) is error
-        gate = mg.BadRequestError("already mapped")
+        gate = rh.BadRequestError("already mapped")
         assert exceptions.map_exception(gate) is gate
 
 
 class TestStreamWrappers:
     def test_close_runs_once_on_exhaustion(self):
-        from model_gate.streaming import ChatStream
+        from routehub.streaming import ChatStream
 
         closed = []
         stream = ChatStream(
@@ -238,8 +238,8 @@ class TestStreamWrappers:
         assert closed == [True]
 
     def test_errors_mid_stream_are_mapped(self):
-        from model_gate._http import httpx
-        from model_gate.streaming import ChatStream
+        from routehub._http import httpx
+        from routehub.streaming import ChatStream
 
         def chunks():
             yield 1
@@ -249,11 +249,11 @@ class TestStreamWrappers:
 
         stream = ChatStream(chunks(), None, "openai", "gpt-4o")
         assert next(stream) == 1
-        with pytest.raises(mg.Timeout):
+        with pytest.raises(rh.Timeout):
             next(stream)
 
     async def test_async_close_runs_once(self):
-        from model_gate.streaming import AsyncChatStream
+        from routehub.streaming import AsyncChatStream
 
         closed = []
 

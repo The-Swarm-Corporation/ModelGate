@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from model_gate._json import dumps_str, loads
+from routehub._json import dumps_str, loads
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MAX_TOKENS = 4096
@@ -936,9 +936,9 @@ def stream_error(error: dict, model: str) -> Exception:
         model (str): Model that was called.
 
     Returns:
-        Exception: The matching ModelGate exception.
+        Exception: The matching RouteHub exception.
     """
-    from model_gate.exceptions import exception_for_status
+    from routehub.exceptions import exception_for_status
 
     status = _ERROR_STATUS.get(error.get("type"), 500)
     return exception_for_status(
@@ -958,9 +958,9 @@ def response_error(response: Any, model: str) -> Exception:
         model (str): Model that was called.
 
     Returns:
-        Exception: The matching ModelGate exception.
+        Exception: The matching RouteHub exception.
     """
-    from model_gate.exceptions import exception_for_status
+    from routehub.exceptions import exception_for_status
 
     try:
         body = response.json()

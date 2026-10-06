@@ -6,9 +6,9 @@ import openai
 import pytest
 from conftest import sse
 
-import model_gate as mg
-from model_gate import anthropic
-from model_gate._http import httpx
+import routehub as rh
+from routehub import anthropic
+from routehub._http import httpx
 
 CACHE = {"type": "ephemeral"}
 
@@ -697,7 +697,7 @@ class TestStreamTranslation:
             "m", include_usage=False, json_mode=False
         )
         with pytest.raises(
-            mg.ServiceUnavailableError, match="Overloaded"
+            rh.ServiceUnavailableError, match="Overloaded"
         ):
             translator.handle(
                 "error",
@@ -740,7 +740,7 @@ class TestCompletionThroughAnthropic:
                 ),
             )
         )
-        response = mg.completion(
+        response = rh.completion(
             model="claude-sonnet-4-6",
             messages=messages(),
             max_tokens=100,
@@ -773,7 +773,7 @@ class TestCompletionThroughAnthropic:
                 ),
             )
         )
-        mg.completion(
+        rh.completion(
             model="anthropic/claude-sonnet-4-6",
             messages=messages(),
             client=client,
@@ -788,7 +788,7 @@ class TestCompletionThroughAnthropic:
                 headers={"content-type": "text/event-stream"},
             )
         )
-        stream = mg.completion(
+        stream = rh.completion(
             model="claude-sonnet-4-6",
             messages=messages(),
             stream=True,
@@ -814,8 +814,8 @@ class TestCompletionThroughAnthropic:
                 },
             )
         )
-        with pytest.raises(mg.ContextWindowExceededError) as raised:
-            mg.completion(
+        with pytest.raises(rh.ContextWindowExceededError) as raised:
+            rh.completion(
                 model="claude-sonnet-4-6",
                 messages=messages(),
                 client=client,
@@ -838,8 +838,8 @@ class TestCompletionThroughAnthropic:
                 },
             )
         )
-        with pytest.raises(mg.AuthenticationError):
-            mg.completion(
+        with pytest.raises(rh.AuthenticationError):
+            rh.completion(
                 model="claude-sonnet-4-6",
                 messages=messages(),
                 client=client,
@@ -876,7 +876,7 @@ class TestCompletionThroughAnthropic:
                 ),
             ),
         )
-        response = mg.completion(
+        response = rh.completion(
             model="claude-sonnet-4-6",
             messages=messages(),
             client=client,
@@ -898,8 +898,8 @@ class TestCompletionThroughAnthropic:
                 },
             )
         )
-        with pytest.raises(mg.ServiceUnavailableError):
-            mg.completion(
+        with pytest.raises(rh.ServiceUnavailableError):
+            rh.completion(
                 model="claude-sonnet-4-6",
                 messages=messages(),
                 client=client,
@@ -912,8 +912,8 @@ class TestCompletionThroughAnthropic:
             raise httpx.ConnectError("refused", request=request)
 
         client, _ = mock_http(fail)
-        with pytest.raises(mg.APIConnectionError):
-            mg.completion(
+        with pytest.raises(rh.APIConnectionError):
+            rh.completion(
                 model="claude-sonnet-4-6",
                 messages=messages(),
                 client=client,
@@ -925,7 +925,7 @@ class TestCompletionThroughAnthropic:
             httpx.Response(200, content=sse(STREAM_EVENTS)),
             is_async=True,
         )
-        stream = await mg.acompletion(
+        stream = await rh.acompletion(
             model="claude-sonnet-4-6",
             messages=messages(),
             stream=True,
@@ -947,7 +947,7 @@ class TestCompletionThroughAnthropic:
             ),
             is_async=True,
         )
-        response = await mg.acompletion(
+        response = await rh.acompletion(
             model="claude-sonnet-4-6",
             messages=messages(),
             client=client,

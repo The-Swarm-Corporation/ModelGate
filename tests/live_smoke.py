@@ -8,7 +8,7 @@ import time
 
 from pydantic import BaseModel
 
-import model_gate as mg
+import routehub as rh
 
 RESULTS = []
 
@@ -70,7 +70,7 @@ class Capital(BaseModel):
 
 def basic(model, max_tokens=64, **kw):
     def run():
-        r = mg.completion(
+        r = rh.completion(
             model=model,
             messages=user("Reply with the single word OK."),
             max_tokens=max_tokens,
@@ -85,7 +85,7 @@ def basic(model, max_tokens=64, **kw):
 
 def stream(model, max_tokens=64):
     def run():
-        s = mg.completion(
+        s = rh.completion(
             model=model,
             messages=user("Count from 1 to 5, comma separated."),
             max_tokens=max_tokens,
@@ -110,7 +110,7 @@ def stream(model, max_tokens=64):
 def tools_roundtrip(model):
     def run():
         messages = user("What is the weather in Paris? Use the tool.")
-        r = mg.completion(
+        r = rh.completion(
             model=model,
             messages=messages,
             tools=[WEATHER_TOOL],
@@ -136,7 +136,7 @@ def tools_roundtrip(model):
                 "content": "Sunny, 21C",
             },
         ]
-        r2 = mg.completion(
+        r2 = rh.completion(
             model=model,
             messages=messages,
             tools=[WEATHER_TOOL],
@@ -150,7 +150,7 @@ def tools_roundtrip(model):
 
 def structured(model):
     def run():
-        r = mg.completion(
+        r = rh.completion(
             model=model,
             messages=user("What is the capital of France?"),
             response_format=Capital,
@@ -167,7 +167,7 @@ def structured(model):
 
 def async_stream(model):
     async def go():
-        s = await mg.acompletion(
+        s = await rh.acompletion(
             model=model,
             messages=user("Say hello in French, one word."),
             max_tokens=64,
@@ -178,7 +178,7 @@ def async_stream(model):
         async for chunk in s:
             if chunk.choices and chunk.choices[0].delta.content:
                 text += chunk.choices[0].delta.content
-        r = await mg.acompletion(
+        r = await rh.acompletion(
             model=model,
             messages=user("Reply OK"),
             max_tokens=32,
@@ -191,7 +191,7 @@ def async_stream(model):
 
 def thinking(model):
     def run():
-        r = mg.completion(
+        r = rh.completion(
             model=model,
             messages=user("What is 17 * 23? Answer with the number."),
             reasoning_effort="low",
@@ -227,10 +227,10 @@ def prompt_cache(model):
             },
             {"role": "user", "content": "Reply with OK."},
         ]
-        r1 = mg.completion(
+        r1 = rh.completion(
             model=model, messages=messages, max_tokens=16
         )
-        r2 = mg.completion(
+        r2 = rh.completion(
             model=model, messages=messages, max_tokens=16
         )
         u1, u2 = r1.usage, r2.usage
@@ -242,13 +242,13 @@ def prompt_cache(model):
 def bad_key(model):
     def run():
         try:
-            mg.completion(
+            rh.completion(
                 model=model,
                 messages=user("hi"),
                 api_key="sk-invalid",
                 num_retries=0,
             )
-        except mg.AuthenticationError as e:
+        except rh.AuthenticationError as e:
             return f"AuthenticationError status={e.status_code} provider={e.llm_provider}"
         raise AssertionError("no error raised")
 
@@ -256,14 +256,14 @@ def bad_key(model):
 
 
 def embed():
-    r = mg.embedding(
+    r = rh.embedding(
         model="text-embedding-3-small", input=["hello world"]
     )
     return f"dims={len(r.data[0].embedding)}"
 
 
 def list_models():
-    from model_gate.get_all_models import get_all_models
+    from routehub.get_all_models import get_all_models
 
     entries = get_all_models()
     providers = sorted({e["provider"] for e in entries})

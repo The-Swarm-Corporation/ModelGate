@@ -141,7 +141,7 @@ def http_client(
     key = ("http", is_async, _loop_id(is_async), ssl_verify)
 
     def build() -> Any:
-        from model_gate._http import httpx
+        from routehub._http import httpx
 
         cls = httpx.AsyncClient if is_async else httpx.Client
         return cls(verify=ssl_verify, follow_redirects=True)

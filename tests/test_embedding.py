@@ -3,8 +3,8 @@
 import openai
 import pytest
 
-import model_gate as mg
-from model_gate._http import httpx
+import routehub as rh
+from routehub._http import httpx
 
 
 def embedding_body(*vectors):
@@ -25,7 +25,7 @@ def test_embedding_returns_openai_response(mock_openai):
             200, json=embedding_body([0.1, 0.2], [0.3, 0.4])
         )
     )
-    response = mg.embedding(
+    response = rh.embedding(
         model="text-embedding-3-small",
         input=["a", "b"],
         dimensions=2,
@@ -43,7 +43,7 @@ def test_embedding_strips_provider_prefix(mock_openai):
     client, recorder = mock_openai(
         httpx.Response(200, json=embedding_body([1.0]))
     )
-    mg.embedding(
+    rh.embedding(
         model="openai/text-embedding-3-small",
         input="a",
         client=client,
@@ -56,7 +56,7 @@ def test_embedding_passes_options(mock_openai):
     client, recorder = mock_openai(
         httpx.Response(200, json=embedding_body([1.0]))
     )
-    mg.embedding(
+    rh.embedding(
         model="text-embedding-3-small",
         input="a",
         user="u",
@@ -73,7 +73,7 @@ def test_embedding_passes_options(mock_openai):
 
 
 def test_embedding_uses_the_cached_client(monkeypatch, mock_openai):
-    import model_gate.main as main
+    import routehub.main as main
 
     client, _ = mock_openai(
         httpx.Response(200, json=embedding_body([1.0]))
@@ -85,7 +85,7 @@ def test_embedding_uses_the_cached_client(monkeypatch, mock_openai):
         return client
 
     monkeypatch.setattr(main, "openai_client", fake_openai_client)
-    mg.embedding(
+    rh.embedding(
         model="text-embedding-3-small",
         input="a",
         num_retries=4,
@@ -101,30 +101,30 @@ def test_embedding_maps_errors(mock_openai):
     client, _ = mock_openai(
         httpx.Response(401, json={"error": {"message": "bad key"}})
     )
-    with pytest.raises(mg.AuthenticationError):
-        mg.embedding(
+    with pytest.raises(rh.AuthenticationError):
+        rh.embedding(
             model="text-embedding-3-small", input="a", client=client
         )
 
 
 def test_anthropic_has_no_embeddings():
-    with pytest.raises(mg.BadRequestError, match="no embeddings"):
-        mg.embedding(model="claude-sonnet-4-6", input="a")
+    with pytest.raises(rh.BadRequestError, match="no embeddings"):
+        rh.embedding(model="claude-sonnet-4-6", input="a")
 
 
 def test_embedding_needs_a_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY")
     with pytest.raises(
-        mg.AuthenticationError, match="OPENAI_API_KEY"
+        rh.AuthenticationError, match="OPENAI_API_KEY"
     ):
-        mg.embedding(model="text-embedding-3-small", input="a")
+        rh.embedding(model="text-embedding-3-small", input="a")
 
 
 async def test_aembedding(mock_openai):
     client, recorder = mock_openai(
         httpx.Response(200, json=embedding_body([0.5])), is_async=True
     )
-    response = await mg.aembedding(
+    response = await rh.aembedding(
         model="text-embedding-3-small", input="a", client=client
     )
     assert response.data[0].embedding == [0.5]
@@ -136,8 +136,8 @@ async def test_aembedding_maps_errors(mock_openai):
         httpx.Response(429, json={"error": {"message": "slow"}}),
         is_async=True,
     )
-    with pytest.raises(mg.RateLimitError):
-        await mg.aembedding(
+    with pytest.raises(rh.RateLimitError):
+        await rh.aembedding(
             model="text-embedding-3-small", input="a", client=client
         )
 
@@ -147,6 +147,6 @@ def test_own_client_needs_no_env_key(monkeypatch, mock_openai):
     client, _ = mock_openai(
         httpx.Response(200, json=embedding_body([1.0]))
     )
-    assert mg.embedding(
+    assert rh.embedding(
         model="text-embedding-3-small", input="a", client=client
     ).data[0].embedding == [1.0]

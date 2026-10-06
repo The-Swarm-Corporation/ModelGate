@@ -1,4 +1,4 @@
-# ModelGate
+# RouteHub
 
 <p align="left">
   <a href="https://swarms.ai">Swarms Website</a>
@@ -18,7 +18,7 @@
   <a href="https://discord.gg/EamjgSaEQf"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**ModelGate is the Swarms LLM gateway, built for raw speed.** litellm is slow: importing it takes over a second, loads 2,332 modules and calls GitHub before your code runs. ModelGate imports in 5.5 ms (about 190x faster), adds 0.004 ms to each call against litellm's 0.74 ms, and reaches 20+ providers through the official OpenAI SDK with the same function names. See [Performance](#performance).
+**RouteHub is the Swarms LLM gateway, built for raw speed.** litellm is slow: importing it takes over a second, loads 2,332 modules and calls GitHub before your code runs. RouteHub imports in 5.5 ms (about 190x faster), adds 0.004 ms to each call against litellm's 0.74 ms, and reaches 20+ providers through the official OpenAI SDK with the same function names. See [Performance](#performance).
 
 ## Quickstart
 
@@ -29,7 +29,7 @@ uv add git+https://github.com/The-Swarm-Corporation/ModelGate
 # or
 pip install git+https://github.com/The-Swarm-Corporation/ModelGate
 # with orjson for faster JSON handling
-pip install "model-gate[fast] @ git+https://github.com/The-Swarm-Corporation/ModelGate"
+pip install "routehub[fast] @ git+https://github.com/The-Swarm-Corporation/ModelGate"
 ```
 
 Set a provider key and make a call:
@@ -39,9 +39,9 @@ export OPENAI_API_KEY="sk-..."
 ```
 
 ```python
-import model_gate
+import routehub
 
-response = model_gate.completion(
+response = routehub.completion(
     model="gpt-5.4-mini",
     messages=[{"role": "user", "content": "Summarize our Q3 risks in three bullets."}],
 )
@@ -52,10 +52,10 @@ print(response.usage.total_tokens)
 Change the model string to change providers. The call and the response type stay the same:
 
 ```python
-model_gate.completion(model="claude-sonnet-4-6", messages=messages)
-model_gate.completion(model="gemini/gemini-3-flash-preview", messages=messages)
-model_gate.completion(model="groq/llama-3.3-70b-versatile", messages=messages)
-model_gate.completion(model="openrouter/anthropic/claude-sonnet-4.6", messages=messages)
+routehub.completion(model="claude-sonnet-4-6", messages=messages)
+routehub.completion(model="gemini/gemini-3-flash-preview", messages=messages)
+routehub.completion(model="groq/llama-3.3-70b-versatile", messages=messages)
+routehub.completion(model="openrouter/anthropic/claude-sonnet-4.6", messages=messages)
 ```
 
 Stream, run async, or call tools with the same function:
@@ -63,11 +63,11 @@ Stream, run async, or call tools with the same function:
 ```python
 import asyncio
 
-for chunk in model_gate.completion(model="claude-sonnet-4-6", messages=messages, stream=True):
+for chunk in routehub.completion(model="claude-sonnet-4-6", messages=messages, stream=True):
     print(chunk.choices[0].delta.content or "", end="")
 
 response = asyncio.run(
-    model_gate.acompletion(model="gpt-5.4-mini", messages=messages, tools=[tool])
+    routehub.acompletion(model="gpt-5.4-mini", messages=messages, tools=[tool])
 )
 ```
 
@@ -79,21 +79,21 @@ response = asyncio.run(
 |---|---|
 | **One API, every major provider** | OpenAI, Anthropic, Gemini, Groq, xAI, DeepSeek, OpenRouter, Together, Mistral, Fireworks, Azure OpenAI, Ollama, vLLM and any OpenAI-compatible server. Requests use the OpenAI chat format, and every response is the OpenAI SDK's own `ChatCompletion`, `ChatCompletionChunk` or `CreateEmbeddingResponse`. |
 | **Built on the official OpenAI SDK** | Retries, timeouts, connection pooling and response types come from OpenAI's client rather than a reimplementation. Works with openai 2.x and 3.x. |
-| **First-class Claude support** | Anthropic's OpenAI-compatible endpoint drops prompt caching, thinking output and cached-token usage, so ModelGate calls Claude's native Messages API and translates both ways. `cache_control` markers, extended thinking, tool use, images, PDFs and cached-token accounting all work. |
+| **First-class Claude support** | Anthropic's OpenAI-compatible endpoint drops prompt caching, thinking output and cached-token usage, so RouteHub calls Claude's native Messages API and translates both ways. `cache_control` markers, extended thinking, tool use, images, PDFs and cached-token accounting all work. |
 | **No global state** | Retries, TLS verification, timeouts and parameter dropping are arguments to each call. One tenant's `ssl_verify=False` or retry policy never leaks into another's, which matters when many teams or agents share a process. |
 | **Predictable errors** | Every provider failure is raised as a typed exception (`RateLimitError`, `ContextWindowExceededError`, `AuthenticationError` and so on) carrying the status code, provider and model. Each subclasses the matching OpenAI SDK exception, so existing handlers keep working. |
 | **Usage and cost visibility** | Token usage comes back in one shape for every provider, including cached input tokens and, where the provider reports them, reasoning tokens. `get_model_info` returns per-token prices, so spend can be computed per call. |
 | **Live model catalog** | `get_model_info` reads context windows, output limits, prices and capabilities from OpenRouter's live model list, and `get_all_models` queries each provider's own models API. Both cache for five minutes, there is no bundled data file to go stale, and private or fine-tuned models can be registered alongside. |
 | **Small supply-chain surface** | Three direct dependencies, `openai`, `pydantic` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs. |
-| **Testable** | `mock_response` returns realistic responses, streams included, without a network call or an API key. ModelGate itself ships with 231 offline tests. |
+| **Testable** | `mock_response` returns realistic responses, streams included, without a network call or an API key. RouteHub itself ships with 231 offline tests. |
 | **Async throughout** | `acompletion`, `aembedding`, async streams and async model listing, with HTTP clients cached per event loop. |
-| **litellm-compatible** | The same function names and module paths (`model_gate.utils`, `model_gate.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm). |
+| **litellm-compatible** | The same function names and module paths (`routehub.utils`, `routehub.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm). |
 
 ## Performance
 
 Measured on the same machine (macOS, Python 3.12) against litellm 1.76.1.
 
-| | litellm | ModelGate |
+| | litellm | RouteHub |
 |---|---|---|
 | `import` time | 1,027 ms | **5.5 ms** |
 | Modules loaded by `import` | 2,332 | **7** |
@@ -101,7 +101,7 @@ Measured on the same machine (macOS, Python 3.12) against litellm 1.76.1.
 | Installed packages | 58 | **20** |
 | Network calls at import | 1 (model price list from GitHub, 5 s timeout) | **none** |
 
-- **Import time** is the median of 7 fresh processes. litellm's GitHub fetch was turned off for its measurement, so the gap is pure import cost. ModelGate loads the OpenAI SDK on the first call, which brings import plus first call to 232 ms.
+- **Import time** is the median of 7 fresh processes. litellm's GitHub fetch was turned off for its measurement, so the gap is pure import cost. RouteHub loads the OpenAI SDK on the first call, which brings import plus first call to 232 ms.
 - **Overhead per call** is the time each gateway adds to a bare OpenAI SDK call (0.416 ms on its own), measured against an instant mock server so network time is excluded. It is the median of 300 calls.
 - **Installed packages** counts the fully resolved dependency tree of each package.
 
@@ -144,7 +144,7 @@ Most providers also read a `<PROVIDER>_API_BASE` variable for a proxy or private
 ### Streaming
 
 ```python
-stream = model_gate.completion(
+stream = routehub.completion(
     model="claude-sonnet-4-6",
     messages=messages,
     stream=True,
@@ -165,8 +165,8 @@ Streams yield `ChatCompletionChunk` objects and can be used in a `with` block. W
 import asyncio
 
 async def main():
-    response = await model_gate.acompletion(model="gpt-5.4-mini", messages=messages)
-    stream = await model_gate.acompletion(model="gpt-5.4-mini", messages=messages, stream=True)
+    response = await routehub.acompletion(model="gpt-5.4-mini", messages=messages)
+    stream = await routehub.acompletion(model="gpt-5.4-mini", messages=messages, stream=True)
     async for chunk in stream:
         ...
 
@@ -191,7 +191,7 @@ weather = {
     },
 }
 
-response = model_gate.completion(model="claude-sonnet-4-6", messages=messages, tools=[weather])
+response = routehub.completion(model="claude-sonnet-4-6", messages=messages, tools=[weather])
 call = response.choices[0].message.tool_calls[0]
 print(call.function.name, call.function.arguments)
 ```
@@ -207,7 +207,7 @@ class RiskReport(BaseModel):
     title: str
     severity: int
 
-response = model_gate.completion(
+response = routehub.completion(
     model="gpt-5.4-mini",
     messages=[{"role": "user", "content": "Assess the main risk of a single-region deployment."}],
     response_format=RiskReport,
@@ -235,7 +235,7 @@ messages = [
     },
     {"role": "user", "content": "Which policies cover vendor onboarding?"},
 ]
-response = model_gate.completion(model="claude-sonnet-4-6", messages=messages)
+response = routehub.completion(model="claude-sonnet-4-6", messages=messages)
 print(response.usage.prompt_tokens_details.cached_tokens)   # tokens read from cache
 print(response.usage.cache_creation_input_tokens)           # tokens written to cache
 ```
@@ -245,7 +245,7 @@ print(response.usage.cache_creation_input_tokens)           # tokens written to 
 ### Embeddings
 
 ```python
-response = model_gate.embedding(model="text-embedding-3-small", input=["first text", "second text"])
+response = routehub.embedding(model="text-embedding-3-small", input=["first text", "second text"])
 vectors = [item.embedding for item in response.data]
 ```
 
@@ -254,8 +254,8 @@ vectors = [item.embedding for item in response.data]
 ### Testing without a provider
 
 ```python
-response = model_gate.completion(model="gpt-5.4-mini", messages=messages, mock_response="Approved.")
-model_gate.completion(model="gpt-5.4-mini", messages=messages, mock_response=TimeoutError("simulated outage"))
+response = routehub.completion(model="gpt-5.4-mini", messages=messages, mock_response="Approved.")
+routehub.completion(model="gpt-5.4-mini", messages=messages, mock_response=TimeoutError("simulated outage"))
 ```
 
 `mock_response` returns a real `ChatCompletion`, or a stream when `stream=True`, without any network call or API key. Pass an exception to rehearse failure handling.
@@ -279,7 +279,7 @@ Also per call: `api_key`, `base_url` or `api_base`, `api_version` (Azure), `cust
 | Variable | Effect |
 |---|---|
 | Provider keys and bases | See [Supported providers](#supported-providers). |
-| `MODEL_GATE_USE_ORJSON` | ModelGate uses `orjson` for JSON when it is installed (the `fast` extra). Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
+| `ROUTEHUB_USE_ORJSON` | RouteHub uses `orjson` for JSON when it is installed (the `fast` extra). Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
 
 ## Error handling
 
@@ -300,10 +300,10 @@ Also per call: `api_key`, `base_url` or `api_base`, `api_version` (Azure), `cust
 
 ```python
 try:
-    model_gate.completion(model="gpt-5.4-mini", messages=messages, num_retries=3)
-except model_gate.ContextWindowExceededError:
+    routehub.completion(model="gpt-5.4-mini", messages=messages, num_retries=3)
+except routehub.ContextWindowExceededError:
     ...  # trim the conversation and retry
-except model_gate.RateLimitError as error:
+except routehub.RateLimitError as error:
     print(error.status_code, error.llm_provider, error.model)
 ```
 
@@ -312,16 +312,16 @@ Each exception subclasses the matching OpenAI SDK exception, and the original er
 ## Model catalog
 
 ```python
-info = model_gate.get_model_info("claude-sonnet-4-6")
+info = routehub.get_model_info("claude-sonnet-4-6")
 info["max_input_tokens"]        # 1000000
 info["max_output_tokens"]       # 128000
 info["input_cost_per_token"]    # 3e-06
 info["supports_reasoning"]      # True
 
-model_gate.get_max_tokens("gpt-5.4-mini")       # 128000
-model_gate.supports_vision("gpt-5.4-mini")      # True
-model_gate.supports_function_calling("deepseek/deepseek-chat")
-"claude-sonnet-4-6" in model_gate.model_list    # True
+routehub.get_max_tokens("gpt-5.4-mini")       # 128000
+routehub.supports_vision("gpt-5.4-mini")      # True
+routehub.supports_function_calling("deepseek/deepseek-chat")
+"claude-sonnet-4-6" in routehub.model_list    # True
 ```
 
 This data comes from [OpenRouter's model list](https://openrouter.ai/api/v1/models), fetched on first use and cached for five minutes; if a refresh fails, the previous data is kept. Anthropic-style names are matched to OpenRouter's (`claude-opus-4-7-20251001` finds `anthropic/claude-opus-4.7`). The `supports_*` functions return `False` for unknown models, and `get_model_info` raises `ModelNotMappedError`.
@@ -329,7 +329,7 @@ This data comes from [OpenRouter's model list](https://openrouter.ai/api/v1/mode
 Register private, fine-tuned or self-hosted models. Registered entries take priority and never expire:
 
 ```python
-model_gate.register_model({
+routehub.register_model({
     "acme-support-ft": {
         "max_input_tokens": 32768,
         "max_output_tokens": 4096,
@@ -341,10 +341,10 @@ model_gate.register_model({
 
 ### Listing models from every provider
 
-`model_gate.get_all_models` asks each provider's own models API what it serves, concurrently, and returns one consistent shape:
+`routehub.get_all_models` asks each provider's own models API what it serves, concurrently, and returns one consistent shape:
 
 ```python
-from model_gate.get_all_models import get_all_models, get_model
+from routehub.get_all_models import get_all_models, get_model
 
 models = get_all_models()   # every provider with a key configured, plus OpenRouter
 chat = [m for m in models if m["type"] == "chat"]
@@ -361,20 +361,20 @@ Results are cached per provider for five minutes, failures included, so an unava
 ## Token counting
 
 ```python
-model_gate.encode(model="gpt-5.4-mini", text="hello world")   # token ids
-model_gate.token_counter(model="gpt-5.4-mini", messages=messages)
+routehub.encode(model="gpt-5.4-mini", text="hello world")   # token ids
+routehub.token_counter(model="gpt-5.4-mini", messages=messages)
 ```
 
 Counting uses tiktoken with the model's encoding, or `o200k_base` for models tiktoken does not know, so counts for non-OpenAI models are estimates. When no tokenizer can be loaded (offline, before tiktoken has cached its files), counts fall back to four bytes per token.
 
 ## Migrating from litellm
 
-| litellm | ModelGate |
+| litellm | RouteHub |
 |---|---|
-| `from litellm import completion, acompletion, embedding` | `from model_gate import completion, acompletion, embedding` |
-| `from litellm.utils import get_model_info, supports_vision` | `from model_gate.utils import get_model_info, supports_vision` |
-| `from litellm.exceptions import AuthenticationError` | `from model_gate.exceptions import AuthenticationError` |
-| `from litellm import model_list, encode` | `from model_gate import model_list, encode` |
+| `from litellm import completion, acompletion, embedding` | `from routehub import completion, acompletion, embedding` |
+| `from litellm.utils import get_model_info, supports_vision` | `from routehub.utils import get_model_info, supports_vision` |
+| `from litellm.exceptions import AuthenticationError` | `from routehub.exceptions import AuthenticationError` |
+| `from litellm import model_list, encode` | `from routehub import model_list, encode` |
 | `litellm.drop_params = True` | `completion(..., drop_params=True)` |
 | `litellm.num_retries = 3` | `completion(..., num_retries=3)` |
 | `litellm.ssl_verify = False` | `completion(..., ssl_verify=False)` |

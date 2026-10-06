@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from model_gate import get_all_models, providers, registry
-from model_gate._http import httpx
+from routehub import get_all_models, providers, registry
+from routehub._http import httpx
 
 FAKE_KEYS = (
     "OPENAI_API_KEY",
@@ -118,7 +118,7 @@ CATALOG = [
 
 
 def _all_key_vars():
-    """Every API-key and base-URL variable ModelGate reads."""
+    """Every API-key and base-URL variable RouteHub reads."""
     names = set()
     for spec in providers.PROVIDERS.values():
         names.update(spec.key_env)
@@ -161,7 +161,7 @@ def catalog(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_backoff(monkeypatch):
     """Make retry delays zero."""
-    import model_gate.main as main
+    import routehub.main as main
 
     monkeypatch.setattr(main, "_backoff", lambda attempt: 0)
     monkeypatch.setattr(

@@ -1,4 +1,4 @@
-"""A tour of ModelGate.
+"""A tour of RouteHub.
 
 Each example runs only when the API key it needs is set; the rest are skipped.
 Run with: uv run python example.py
@@ -10,8 +10,8 @@ import os
 
 from pydantic import BaseModel
 
-import model_gate
-from model_gate.get_all_models import get_all_models, get_model
+import routehub
+from routehub.get_all_models import get_all_models, get_model
 
 OPENAI_MODEL = os.environ.get("EXAMPLE_OPENAI_MODEL", "gpt-5.4-mini")
 CLAUDE_MODEL = os.environ.get(
@@ -49,7 +49,7 @@ def ask(text: str) -> list:
 
 def mock_response() -> None:
     """A canned reply, with no network call and no API key."""
-    response = model_gate.completion(
+    response = routehub.completion(
         model=OPENAI_MODEL,
         messages=ask("Is the deployment approved?"),
         mock_response="Approved.",
@@ -59,7 +59,7 @@ def mock_response() -> None:
 
 def basic_completion() -> None:
     """One request, with the reply and token usage."""
-    response = model_gate.completion(
+    response = routehub.completion(
         model=OPENAI_MODEL,
         messages=ask("Name three prime numbers, comma separated."),
         max_tokens=100,
@@ -76,7 +76,7 @@ def basic_completion() -> None:
 
 def streaming() -> None:
     """Print tokens as they arrive, then the usage chunk."""
-    stream = model_gate.completion(
+    stream = routehub.completion(
         model=OPENAI_MODEL,
         messages=ask("Count from 1 to 10."),
         stream=True,
@@ -100,7 +100,7 @@ def concurrent_async() -> None:
         ]
         responses = await asyncio.gather(
             *(
-                model_gate.acompletion(
+                routehub.acompletion(
                     model=OPENAI_MODEL,
                     messages=ask(f"{q} One word."),
                     max_tokens=20,
@@ -120,7 +120,7 @@ def tool_calling(model: str) -> None:
         model (str): The model to use.
     """
     messages = ask("What's the weather in Paris?")
-    response = model_gate.completion(
+    response = routehub.completion(
         model=model,
         messages=messages,
         tools=[WEATHER_TOOL],
@@ -148,7 +148,7 @@ def tool_calling(model: str) -> None:
             "content": "Sunny, 21°C",
         },
     ]
-    final = model_gate.completion(
+    final = routehub.completion(
         model=model,
         messages=messages,
         tools=[WEATHER_TOOL],
@@ -165,7 +165,7 @@ class Capital(BaseModel):
 
 def structured_output() -> None:
     """Get a reply that validates against a pydantic model."""
-    response = model_gate.completion(
+    response = routehub.completion(
         model=OPENAI_MODEL,
         messages=ask(
             "Give the capital of Canada and its population."
@@ -202,7 +202,7 @@ def claude_thinking_and_caching() -> None:
         },
     ]
     for attempt in (1, 2):
-        response = model_gate.completion(
+        response = routehub.completion(
             model=CLAUDE_MODEL,
             messages=messages,
             reasoning_effort="low",
@@ -223,7 +223,7 @@ def claude_thinking_and_caching() -> None:
 
 def embeddings() -> None:
     """Embed two texts."""
-    response = model_gate.embedding(
+    response = routehub.embedding(
         model="text-embedding-3-small",
         input=["quarterly revenue report", "annual earnings summary"],
     )
@@ -238,7 +238,7 @@ def embeddings() -> None:
 def model_catalog() -> None:
     """Look up limits, prices and capabilities from the live catalog."""
     for name in (OPENAI_MODEL, CLAUDE_MODEL):
-        info = model_gate.get_model_info(name)
+        info = routehub.get_model_info(name)
         print(
             f"{name}: {info['max_input_tokens']:,} token context, "
             f"{info['max_output_tokens']:,} max output, "
@@ -247,7 +247,7 @@ def model_catalog() -> None:
         )
     print(
         "claude-sonnet-4-6 known:",
-        "claude-sonnet-4-6" in model_gate.model_list,
+        "claude-sonnet-4-6" in routehub.model_list,
     )
 
 
@@ -271,13 +271,13 @@ def list_all_models() -> None:
 def error_handling() -> None:
     """Catch a typed error from a bad key."""
     try:
-        model_gate.completion(
+        routehub.completion(
             model=OPENAI_MODEL,
             messages=ask("hi"),
             api_key="sk-invalid",
             num_retries=0,
         )
-    except model_gate.AuthenticationError as error:
+    except routehub.AuthenticationError as error:
         print(
             f"{type(error).__name__}: status={error.status_code} provider={error.llm_provider}"
         )
@@ -293,7 +293,7 @@ def token_counting() -> None:
         },
     ]
     print(
-        model_gate.token_counter(
+        routehub.token_counter(
             model=OPENAI_MODEL, messages=messages
         ),
         "tokens",

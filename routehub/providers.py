@@ -327,7 +327,7 @@ def get_llm_provider(
         provider = "openai_like"
     if provider is None or provider not in PROVIDERS:
         # Imported here: exceptions loads the OpenAI SDK, which lookups never need.
-        from model_gate.exceptions import BadRequestError
+        from routehub.exceptions import BadRequestError
 
         raise BadRequestError(
             f"LLM provider not provided or not supported for model={model!r}. "

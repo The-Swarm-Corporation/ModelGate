@@ -6,7 +6,7 @@ import math
 from functools import lru_cache
 from typing import Any, List, Optional
 
-logger = logging.getLogger("model_gate")
+logger = logging.getLogger("routehub")
 
 _DEFAULT_ENCODING = "o200k_base"
 

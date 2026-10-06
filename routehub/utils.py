@@ -1,7 +1,7 @@
 """The helpers litellm exposes under litellm.utils."""
 
-from model_gate.providers import get_llm_provider
-from model_gate.registry import (
+from routehub.providers import get_llm_provider
+from routehub.registry import (
     get_max_tokens,
     get_model_info,
     register_model,
@@ -20,7 +20,7 @@ from model_gate.registry import (
     supports_vision,
     supports_web_search,
 )
-from model_gate.tokenizer import decode, encode, token_counter
+from routehub.tokenizer import decode, encode, token_counter
 
 __all__ = [
     "decode",
