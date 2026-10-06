@@ -1,0 +1,33 @@
+[project]
+name = "model-gate"
+version = "0.1.0"
+description = "A fast, lightweight LLM gateway with a litellm-compatible API, built on the OpenAI SDK."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Kye Gomez", email = "kye@swarms.world" }]
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.68",
+    "tiktoken>=0.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_gate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 70
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]

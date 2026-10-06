@@ -1,2 +1,402 @@
 # ModelGate
-The Swarms LLM Gateway
+
+**The enterprise LLM gateway from Swarms.** One API for 20+ model providers, built on the official OpenAI SDK. ModelGate is a drop-in replacement for litellm that imports in 5.5 ms instead of a second, adds almost nothing to each call, and installs a third of the packages.
+
+## Quickstart
+
+Install from GitHub:
+
+```bash
+uv add git+https://github.com/The-Swarm-Corporation/ModelGate
+# or
+pip install git+https://github.com/The-Swarm-Corporation/ModelGate
+```
+
+Set a provider key and make a call:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+```python
+import model_gate
+
+response = model_gate.completion(
+    model="gpt-5.4-mini",
+    messages=[{"role": "user", "content": "Summarize our Q3 risks in three bullets."}],
+)
+print(response.choices[0].message.content)
+print(response.usage.total_tokens)
+```
+
+Change the model string to change providers. The call and the response type stay the same:
+
+```python
+model_gate.completion(model="claude-sonnet-4-6", messages=messages)
+model_gate.completion(model="gemini/gemini-3-flash-preview", messages=messages)
+model_gate.completion(model="groq/llama-3.3-70b-versatile", messages=messages)
+model_gate.completion(model="openrouter/anthropic/claude-sonnet-4.6", messages=messages)
+```
+
+Stream, run async, or call tools with the same function:
+
+```python
+import asyncio
+
+for chunk in model_gate.completion(model="claude-sonnet-4-6", messages=messages, stream=True):
+    print(chunk.choices[0].delta.content or "", end="")
+
+response = asyncio.run(
+    model_gate.acompletion(model="gpt-5.4-mini", messages=messages, tools=[tool])
+)
+```
+
+[example.py](example.py) walks through every feature. Python 3.10+.
+
+## Features
+
+**One API, every major provider.** OpenAI, Anthropic, Gemini, Groq, xAI, DeepSeek, OpenRouter, Together, Mistral, Fireworks, Azure OpenAI, Ollama, vLLM and any OpenAI-compatible server. Requests use the OpenAI chat format, and every response is the OpenAI SDK's own `ChatCompletion`, `ChatCompletionChunk` or `CreateEmbeddingResponse`.
+
+**Built on the official OpenAI SDK.** Retries, timeouts, connection pooling and response types come from OpenAI's client rather than a reimplementation. ModelGate works with openai 2.x and 3.x.
+
+**First-class Claude support.** Anthropic's OpenAI-compatible endpoint drops prompt caching, thinking output and cached-token usage, so ModelGate calls Claude's native Messages API and translates both ways. `cache_control` markers, extended thinking, tool use, images, PDFs and cached-token accounting all work.
+
+**No global state.** Retries, TLS verification, timeouts and parameter dropping are arguments to each call. One tenant's `ssl_verify=False` or retry policy can never leak into another's, which matters when many teams or agents share a process.
+
+**Predictable errors.** Every provider failure is raised as a typed exception (`RateLimitError`, `ContextWindowExceededError`, `AuthenticationError` and so on) carrying the status code, provider and model. Each one subclasses the matching OpenAI SDK exception, so existing handlers keep working.
+
+**Usage and cost visibility.** Token usage is reported in one shape for every provider, including cached input tokens and reasoning tokens. `get_model_info` returns per-token prices, so spend can be computed per call.
+
+**Live model catalog.** Context windows, output limits, prices and capabilities come from OpenRouter's live model list and from each provider's own models API, cached for five minutes. There is no bundled data file to go stale, and private or fine-tuned models can be registered alongside.
+
+**Small supply-chain surface.** Two direct dependencies, `openai` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs.
+
+**Testable.** `mock_response` returns realistic responses, streams included, without a network call or an API key. ModelGate itself ships with 231 offline tests.
+
+**Async throughout.** `acompletion`, `aembedding`, async streams and async model listing, with HTTP clients cached per event loop.
+
+**litellm-compatible.** The same function names and module paths (`model_gate.utils`, `model_gate.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm).
+
+## Performance
+
+Measured on the same machine (macOS, Python 3.12) against litellm 1.76.1.
+
+| | litellm | ModelGate |
+|---|---|---|
+| `import` time | 1,027 ms | **5.5 ms** |
+| Modules loaded by `import` | 2,332 | **7** |
+| Gateway overhead per call | 0.74 ms | **0.004 ms** |
+| Installed packages | 58 | **20** |
+| Network calls at import | 1 (model price list from GitHub, 5 s timeout) | **none** |
+
+- **Import time** is the median of 7 fresh processes. litellm's GitHub fetch was turned off for its measurement, so the gap is pure import cost. ModelGate loads the OpenAI SDK on the first call, which brings import plus first call to 232 ms.
+- **Overhead per call** is the time each gateway adds to a bare OpenAI SDK call (0.416 ms on its own), measured against an instant mock server so network time is excluded. It is the median of 300 calls.
+- **Installed packages** counts the fully resolved dependency tree of each package.
+
+Fast startup matters most for serverless functions, CLI tools, test suites and short-lived agent processes, where litellm's import alone can outweigh the work being done.
+
+## Supported providers
+
+Prefix the model with its provider. Bare names starting with `gpt-`, `o1`/`o3`/`o4`, `claude-`, `gemini-`, `grok-`, `deepseek-` or `mistral-` need no prefix.
+
+| Provider | Model string | API key variable |
+|---|---|---|
+| OpenAI | `gpt-5.4`, `openai/gpt-4o` | `OPENAI_API_KEY` |
+| Anthropic (native API) | `claude-sonnet-4-6`, `anthropic/claude-opus-4-7` | `ANTHROPIC_API_KEY` |
+| Google Gemini | `gemini/gemini-3-flash-preview` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` |
+| Azure OpenAI | `azure/<deployment>` | `AZURE_API_KEY`, `AZURE_API_BASE`, `AZURE_API_VERSION` |
+| Groq | `groq/llama-3.3-70b-versatile` | `GROQ_API_KEY` |
+| xAI | `xai/grok-4` | `XAI_API_KEY` |
+| DeepSeek | `deepseek/deepseek-chat` | `DEEPSEEK_API_KEY` |
+| OpenRouter | `openrouter/anthropic/claude-sonnet-4.6` | `OPENROUTER_API_KEY` |
+| Together AI | `together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo` | `TOGETHERAI_API_KEY` or `TOGETHER_API_KEY` |
+| Mistral | `mistral/mistral-large-latest` | `MISTRAL_API_KEY` |
+| Fireworks | `fireworks_ai/accounts/fireworks/models/...` | `FIREWORKS_API_KEY` |
+| Perplexity | `perplexity/sonar` | `PERPLEXITYAI_API_KEY` |
+| Cerebras | `cerebras/...` | `CEREBRAS_API_KEY` |
+| DeepInfra | `deepinfra/...` | `DEEPINFRA_API_KEY` |
+| SambaNova | `sambanova/...` | `SAMBANOVA_API_KEY` |
+| NVIDIA NIM | `nvidia_nim/...` | `NVIDIA_NIM_API_KEY` |
+| Moonshot | `moonshot/...` | `MOONSHOT_API_KEY` |
+| Alibaba DashScope | `dashscope/...` | `DASHSCOPE_API_KEY` |
+| Hugging Face | `huggingface/...` | `HF_TOKEN` |
+| Ollama | `ollama/llama3` | none; `OLLAMA_API_BASE` for a remote server |
+| LM Studio | `lm_studio/...` | none; `LM_STUDIO_API_BASE` |
+| vLLM | `hosted_vllm/...` | `HOSTED_VLLM_API_BASE` |
+| Any OpenAI-compatible server | any name with `api_base=` | optional |
+
+Most providers also read a `<PROVIDER>_API_BASE` variable for a proxy or private endpoint, and `api_base=` (or `base_url=`) overrides it per call.
+
+## Usage guide
+
+### Streaming
+
+```python
+stream = model_gate.completion(
+    model="claude-sonnet-4-6",
+    messages=messages,
+    stream=True,
+    stream_options={"include_usage": True},
+)
+for chunk in stream:
+    if chunk.usage:
+        print("\nusage:", chunk.usage)
+    elif chunk.choices and chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="", flush=True)
+```
+
+Streams yield `ChatCompletionChunk` objects and can be used in a `with` block. With `include_usage`, the final chunk carries `usage` and no choices, exactly as OpenAI does.
+
+### Async
+
+```python
+import asyncio
+
+async def main():
+    response = await model_gate.acompletion(model="gpt-5.4-mini", messages=messages)
+    stream = await model_gate.acompletion(model="gpt-5.4-mini", messages=messages, stream=True)
+    async for chunk in stream:
+        ...
+
+asyncio.run(main())
+```
+
+`acompletion` takes exactly the same arguments as `completion`.
+
+### Tool calling
+
+```python
+weather = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get the weather for a city.",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    },
+}
+
+response = model_gate.completion(model="claude-sonnet-4-6", messages=messages, tools=[weather])
+call = response.choices[0].message.tool_calls[0]
+print(call.function.name, call.function.arguments)
+```
+
+Return results as `{"role": "tool", "tool_call_id": call.id, "content": "..."}` messages. For Claude, tool definitions, calls and results are translated to Anthropic's format and back, including parallel calls.
+
+### Structured output
+
+```python
+from pydantic import BaseModel
+
+class RiskReport(BaseModel):
+    title: str
+    severity: int
+
+response = model_gate.completion(
+    model="gpt-5.4-mini",
+    messages=[{"role": "user", "content": "Assess the main risk of a single-region deployment."}],
+    response_format=RiskReport,
+)
+report = RiskReport.model_validate_json(response.choices[0].message.content)
+```
+
+A pydantic model becomes a strict `json_schema` response format. For Claude, the schema is enforced through a forced tool call and returned as the message content.
+
+### Reasoning
+
+`reasoning_effort` accepts `"none"`, `"minimal"`, `"low"`, `"medium"`, `"high"` and `"xhigh"`. OpenAI-compatible providers receive it directly. For Claude it becomes a thinking budget (1,024 tokens for low, 2,048 for medium, 4,096 for high), with `max_tokens` raised above the budget when needed. Pass `thinking={...}` to configure Claude's thinking directly.
+
+Claude's thinking is returned on the message as `reasoning_content` (text) and `thinking_blocks` (the signed blocks). Send `thinking_blocks` back on the assistant message for multi-turn tool use, as Anthropic requires. DeepSeek's `reasoning_content` comes through the same way.
+
+### Prompt caching with Claude
+
+```python
+messages = [
+    {
+        "role": "system",
+        "content": [
+            {"type": "text", "text": policy_handbook, "cache_control": {"type": "ephemeral"}}
+        ],
+    },
+    {"role": "user", "content": "Which policies cover vendor onboarding?"},
+]
+response = model_gate.completion(model="claude-sonnet-4-6", messages=messages)
+print(response.usage.prompt_tokens_details.cached_tokens)   # tokens read from cache
+print(response.usage.cache_creation_input_tokens)           # tokens written to cache
+```
+
+`cache_control` markers on messages and tools go to Anthropic unchanged. `prompt_tokens` includes cache reads and writes, so cost accounting stays correct. Markers pass through to OpenRouter and are stripped for providers that cache automatically.
+
+### Embeddings
+
+```python
+response = model_gate.embedding(model="text-embedding-3-small", input=["first text", "second text"])
+vectors = [item.embedding for item in response.data]
+```
+
+`aembedding` is the async form. Any OpenAI-compatible embeddings endpoint works.
+
+### Testing without a provider
+
+```python
+response = model_gate.completion(model="gpt-5.4-mini", messages=messages, mock_response="Approved.")
+model_gate.completion(model="gpt-5.4-mini", messages=messages, mock_response=TimeoutError("simulated outage"))
+```
+
+`mock_response` returns a real `ChatCompletion`, or a stream when `stream=True`, without any network call or API key. Pass an exception to rehearse failure handling.
+
+## Configuration
+
+Every setting is a parameter of the call; nothing is configured globally.
+
+| Parameter | Default | Effect |
+|---|---|---|
+| `drop_params` | `False` | Drop parameters a model rejects instead of sending them: sampling parameters on OpenAI reasoning models, `reasoning_effort` on models without reasoning, thinking on older Claude models, and unknown keyword arguments. |
+| `num_retries` | `None` | Retries on rate limits, 5xx errors and connection failures, with exponential backoff that honours `retry-after`. `None` means 2. |
+| `ssl_verify` | `True` | TLS verification, or a path to a corporate CA bundle. |
+| `set_verbose` | `False` | Print the provider, model, parameter names and timing to stderr. API keys and message content are never printed. |
+| `request_timeout` | `600.0` | Request timeout in seconds. `timeout=` overrides it. |
+
+Also per call: `api_key`, `base_url` or `api_base`, `api_version` (Azure), `custom_llm_provider`, `extra_headers`, `extra_body` (always sent), `client` (your own configured OpenAI or httpx client, for example with a proxy or mTLS), and `mock_response`. Any other OpenAI parameter (`stop`, `seed`, `n`, `logprobs`, `prompt_cache_key` and so on) can be passed by name. Unrecognized keyword arguments are sent in the request body unless `drop_params` is on.
+
+### Environment variables
+
+| Variable | Effect |
+|---|---|
+| Provider keys and bases | See [Supported providers](#supported-providers). |
+| `MODEL_GATE_USE_ORJSON` | ModelGate uses `orjson` for JSON when it is installed. Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
+
+## Error handling
+
+| Exception | Raised when |
+|---|---|
+| `BadRequestError` | the provider returns 400 |
+| `ContextWindowExceededError` | the prompt is longer than the model's context window |
+| `ContentPolicyViolationError` | the provider refuses on content-policy grounds |
+| `AuthenticationError` | the key is invalid (401), or no key is configured |
+| `PermissionDeniedError` | the key lacks access (403) |
+| `NotFoundError` | the model or endpoint does not exist (404) |
+| `UnprocessableEntityError` | 422 |
+| `RateLimitError` | 429 |
+| `InternalServerError` | 500 and above |
+| `ServiceUnavailableError` | 503, or Anthropic's 529 overloaded |
+| `Timeout` | the request timed out |
+| `APIConnectionError` | the provider could not be reached |
+
+```python
+try:
+    model_gate.completion(model="gpt-5.4-mini", messages=messages, num_retries=3)
+except model_gate.ContextWindowExceededError:
+    ...  # trim the conversation and retry
+except model_gate.RateLimitError as error:
+    print(error.status_code, error.llm_provider, error.model)
+```
+
+Each exception subclasses the matching OpenAI SDK exception, and the original error is chained as `__cause__`.
+
+## Model catalog
+
+```python
+info = model_gate.get_model_info("claude-sonnet-4-6")
+info["max_input_tokens"]        # 1000000
+info["max_output_tokens"]       # 128000
+info["input_cost_per_token"]    # 3e-06
+info["supports_reasoning"]      # True
+
+model_gate.get_max_tokens("gpt-5.4-mini")       # 128000
+model_gate.supports_vision("gpt-5.4-mini")      # True
+model_gate.supports_function_calling("deepseek/deepseek-chat")
+"claude-sonnet-4-6" in model_gate.model_list    # True
+```
+
+This data comes from [OpenRouter's model list](https://openrouter.ai/api/v1/models), fetched on first use and cached for five minutes; if a refresh fails, the previous data is kept. Anthropic-style names are matched to OpenRouter's (`claude-opus-4-7-20251001` finds `anthropic/claude-opus-4.7`). The `supports_*` functions return `False` for unknown models, and `get_model_info` raises `ModelNotMappedError`.
+
+Register private, fine-tuned or self-hosted models. Registered entries take priority and never expire:
+
+```python
+model_gate.register_model({
+    "acme-support-ft": {
+        "max_input_tokens": 32768,
+        "max_output_tokens": 4096,
+        "supports_function_calling": True,
+        "input_cost_per_token": 0.000002,
+    }
+})
+```
+
+### Listing models from every provider
+
+`model_gate.get_all_models` asks each provider's own models API what it serves, concurrently, and returns one consistent shape:
+
+```python
+from model_gate.get_all_models import get_all_models, get_model
+
+models = get_all_models()   # every provider with a key configured, plus OpenRouter
+chat = [m for m in models if m["type"] == "chat"]
+
+get_all_models(["anthropic", "gemini"])          # selected providers only
+get_model("anthropic", "claude-sonnet-4-6")      # one model, from the per-model endpoint
+get_model("openrouter", "anthropic/claude-sonnet-4.6")["endpoints"]  # every host serving it
+```
+
+Sources: OpenRouter (no key needed), OpenAI, Anthropic, Gemini, Groq, xAI, DeepSeek, Mistral, Together, Fireworks, Cerebras, and a local Ollama server when `OLLAMA_API_BASE` is set. Each entry has `id`, `provider`, `model`, `name`, `type`, `context_window`, `max_output_tokens`, `input_modalities`, `output_modalities`, `supports_vision`, `supports_function_calling`, `supports_reasoning`, `supports_structured_output`, `input_cost_per_token`, `output_cost_per_token`, `created`, `endpoints` and the provider's `raw` record, with `None` where a provider does not report a field.
+
+Results are cached per provider for five minutes, failures included, so an unavailable provider is retried once per window rather than on every call. Pass `refresh=True` to fetch again, or call `clear_cache()`. `aget_all_models` and `aget_models` are the async forms.
+
+## Token counting
+
+```python
+model_gate.encode(model="gpt-5.4-mini", text="hello world")   # token ids
+model_gate.token_counter(model="gpt-5.4-mini", messages=messages)
+```
+
+Counting uses tiktoken with the model's encoding, or `o200k_base` for models tiktoken does not know, so counts for non-OpenAI models are estimates. When no tokenizer can be loaded (offline, before tiktoken has cached its files), counts fall back to four bytes per token.
+
+## Migrating from litellm
+
+| litellm | ModelGate |
+|---|---|
+| `from litellm import completion, acompletion, embedding` | `from model_gate import completion, acompletion, embedding` |
+| `from litellm.utils import get_model_info, supports_vision` | `from model_gate.utils import get_model_info, supports_vision` |
+| `from litellm.exceptions import AuthenticationError` | `from model_gate.exceptions import AuthenticationError` |
+| `from litellm import model_list, encode` | `from model_gate import model_list, encode` |
+| `litellm.drop_params = True` | `completion(..., drop_params=True)` |
+| `litellm.num_retries = 3` | `completion(..., num_retries=3)` |
+| `litellm.ssl_verify = False` | `completion(..., ssl_verify=False)` |
+| `litellm.set_verbose = True` | `completion(..., set_verbose=True)` |
+| `ModelResponse` | `openai.types.chat.ChatCompletion` |
+
+Other differences to plan for:
+
+- Responses are OpenAI SDK objects, so use attribute access or `.model_dump()`; dictionary access (`response["choices"]`) is not supported.
+- Settings apply to one call, not the whole process.
+- Requests to OpenAI with `max_tokens` are sent as `max_completion_tokens`, which every current OpenAI chat model accepts and reasoning models require.
+- litellm-only keyword arguments such as `metadata` and `caching` are accepted and ignored.
+
+## Limitations
+
+- Not yet supported: Vertex AI, AWS Bedrock, Cohere's native API, the OpenAI Responses API, image generation, audio and batch APIs.
+- Claude 5 models accept only adaptive thinking, and ModelGate currently maps `reasoning_effort` to a fixed thinking budget, which those models reject. Until this is fixed, pass `thinking={"type": "adaptive"}` for Claude 5.
+- Model metadata requires the model to be listed by OpenRouter or registered with `register_model`. Models offered by a single provider only, such as `groq/llama-3.3-70b-versatile`, raise `ModelNotMappedError` until registered.
+
+## Development
+
+```bash
+uv sync
+uv run pytest                        # 231 offline tests, no API keys needed
+uv run --with orjson pytest          # with orjson installed
+uv run --with "openai<3" pytest      # against openai 2.x
+```
+
+`tests/live_smoke.py` exercises real providers and needs their API keys in the environment:
+
+```bash
+uv run python tests/live_smoke.py
+```
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
