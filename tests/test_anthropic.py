@@ -920,6 +920,26 @@ class TestCompletionThroughAnthropic:
                 num_retries=0,
             )
 
+    def test_connecting_gets_its_own_short_timeout(self, mock_http):
+        def unreachable(request):
+            raise httpx.ConnectTimeout("unreachable", request=request)
+
+        client, recorder = mock_http(unreachable)
+        with pytest.raises(rh.Timeout):
+            rh.completion(
+                model="claude-sonnet-4-6",
+                messages=messages(),
+                client=client,
+                num_retries=0,
+                request_timeout=30.0,
+            )
+        assert recorder.requests[0].extensions["timeout"] == {
+            "connect": 5.0,
+            "read": 30.0,
+            "write": 30.0,
+            "pool": 30.0,
+        }
+
     async def test_async_streaming_call(self, mock_http):
         client, _ = mock_http(
             httpx.Response(200, content=sse(STREAM_EVENTS)),
