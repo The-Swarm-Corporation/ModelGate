@@ -914,6 +914,32 @@ class TestClients:
         assert a is b and a is not c
         assert a.max_retries == 4 and c.max_retries == 1
 
+    def test_clients_keep_idle_connections_for_a_minute(self):
+        from routehub import clients
+
+        clients._clients.clear()
+        sdk = clients.openai_client(
+            "openai",
+            "k",
+            None,
+            is_async=False,
+            max_retries=0,
+            ssl_verify=True,
+        )
+        native = clients.http_client(is_async=False, ssl_verify=True)
+        for pool in (
+            sdk._client._transport._pool,
+            native._transport._pool,
+        ):
+            assert pool._keepalive_expiry == 60.0
+            assert pool._max_keepalive_connections == 100
+            assert pool._max_connections == 1000
+        short = clients.http_client(
+            is_async=False, ssl_verify=True, keepalive_expiry=5.0
+        )
+        assert short is not native
+        assert short._transport._pool._keepalive_expiry == 5.0
+
     def test_azure_builds_an_azure_client(self):
         from routehub import clients
 
