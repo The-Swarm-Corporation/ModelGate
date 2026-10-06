@@ -55,27 +55,19 @@ response = asyncio.run(
 
 ## Features
 
-**One API, every major provider.** OpenAI, Anthropic, Gemini, Groq, xAI, DeepSeek, OpenRouter, Together, Mistral, Fireworks, Azure OpenAI, Ollama, vLLM and any OpenAI-compatible server. Requests use the OpenAI chat format, and every response is the OpenAI SDK's own `ChatCompletion`, `ChatCompletionChunk` or `CreateEmbeddingResponse`.
-
-**Built on the official OpenAI SDK.** Retries, timeouts, connection pooling and response types come from OpenAI's client rather than a reimplementation. ModelGate works with openai 2.x and 3.x.
-
-**First-class Claude support.** Anthropic's OpenAI-compatible endpoint drops prompt caching, thinking output and cached-token usage, so ModelGate calls Claude's native Messages API and translates both ways. `cache_control` markers, extended thinking, tool use, images, PDFs and cached-token accounting all work.
-
-**No global state.** Retries, TLS verification, timeouts and parameter dropping are arguments to each call. One tenant's `ssl_verify=False` or retry policy can never leak into another's, which matters when many teams or agents share a process.
-
-**Predictable errors.** Every provider failure is raised as a typed exception (`RateLimitError`, `ContextWindowExceededError`, `AuthenticationError` and so on) carrying the status code, provider and model. Each one subclasses the matching OpenAI SDK exception, so existing handlers keep working.
-
-**Usage and cost visibility.** Token usage is reported in one shape for every provider, including cached input tokens and reasoning tokens. `get_model_info` returns per-token prices, so spend can be computed per call.
-
-**Live model catalog.** Context windows, output limits, prices and capabilities come from OpenRouter's live model list and from each provider's own models API, cached for five minutes. There is no bundled data file to go stale, and private or fine-tuned models can be registered alongside.
-
-**Small supply-chain surface.** Two direct dependencies, `openai` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs.
-
-**Testable.** `mock_response` returns realistic responses, streams included, without a network call or an API key. ModelGate itself ships with 231 offline tests.
-
-**Async throughout.** `acompletion`, `aembedding`, async streams and async model listing, with HTTP clients cached per event loop.
-
-**litellm-compatible.** The same function names and module paths (`model_gate.utils`, `model_gate.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm).
+| Feature | What it means |
+|---|---|
+| **One API, every major provider** | OpenAI, Anthropic, Gemini, Groq, xAI, DeepSeek, OpenRouter, Together, Mistral, Fireworks, Azure OpenAI, Ollama, vLLM and any OpenAI-compatible server. Requests use the OpenAI chat format, and every response is the OpenAI SDK's own `ChatCompletion`, `ChatCompletionChunk` or `CreateEmbeddingResponse`. |
+| **Built on the official OpenAI SDK** | Retries, timeouts, connection pooling and response types come from OpenAI's client rather than a reimplementation. Works with openai 2.x and 3.x. |
+| **First-class Claude support** | Anthropic's OpenAI-compatible endpoint drops prompt caching, thinking output and cached-token usage, so ModelGate calls Claude's native Messages API and translates both ways. `cache_control` markers, extended thinking, tool use, images, PDFs and cached-token accounting all work. |
+| **No global state** | Retries, TLS verification, timeouts and parameter dropping are arguments to each call. One tenant's `ssl_verify=False` or retry policy never leaks into another's, which matters when many teams or agents share a process. |
+| **Predictable errors** | Every provider failure is raised as a typed exception (`RateLimitError`, `ContextWindowExceededError`, `AuthenticationError` and so on) carrying the status code, provider and model. Each subclasses the matching OpenAI SDK exception, so existing handlers keep working. |
+| **Usage and cost visibility** | Token usage comes back in one shape for every provider, including cached input tokens and, where the provider reports them, reasoning tokens. `get_model_info` returns per-token prices, so spend can be computed per call. |
+| **Live model catalog** | `get_model_info` reads context windows, output limits, prices and capabilities from OpenRouter's live model list, and `get_all_models` queries each provider's own models API. Both cache for five minutes, there is no bundled data file to go stale, and private or fine-tuned models can be registered alongside. |
+| **Small supply-chain surface** | Two direct dependencies, `openai` and `tiktoken`, for 20 installed packages in total, against 58 for litellm. API keys come from the environment or the call and are never written to logs. |
+| **Testable** | `mock_response` returns realistic responses, streams included, without a network call or an API key. ModelGate itself ships with 231 offline tests. |
+| **Async throughout** | `acompletion`, `aembedding`, async streams and async model listing, with HTTP clients cached per event loop. |
+| **litellm-compatible** | The same function names and module paths (`model_gate.utils`, `model_gate.exceptions`), so migrating is mostly a change of import. See [Migrating from litellm](#migrating-from-litellm). |
 
 ## Performance
 
