@@ -1,5 +1,23 @@
 # ModelGate
 
+<p align="left">
+  <a href="https://swarms.ai">Swarms Website</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://docs.swarms.world">Documentation</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="https://swarms.world">Swarms Marketplace</a>
+</p>
+
+<p align="left">
+  <a href="https://swarms.ai"><img src="https://img.shields.io/badge/Built%20by-Swarms.ai-3670A0?style=for-the-badge" alt="Built by Swarms.ai"></a>
+  <a href="https://github.com/The-Swarm-Corporation/ModelGate"><img src="https://img.shields.io/github/stars/The-Swarm-Corporation/ModelGate?style=for-the-badge&color=3670A0" alt="GitHub stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-3670A0?style=for-the-badge" alt="License: Apache 2.0"></a>
+  <a href="https://www.python.org"><img src="https://img.shields.io/badge/Python-3.10%2B-3670A0?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="https://github.com/openai/openai-python"><img src="https://img.shields.io/badge/Built%20on-OpenAI%20SDK-3670A0?style=for-the-badge&logo=openai&logoColor=white" alt="Built on the OpenAI SDK"></a>
+  <a href="https://twitter.com/swarms_corp/"><img src="https://img.shields.io/badge/Twitter-Follow-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white" alt="Twitter"></a>
+  <a href="https://discord.gg/EamjgSaEQf"><img src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+</p>
+
 **The enterprise LLM gateway from Swarms.** One API for 20+ model providers, built on the official OpenAI SDK. ModelGate is a drop-in replacement for litellm that imports in 5.5 ms instead of a second, adds almost nothing to each call, and installs a third of the packages.
 
 ## Quickstart
