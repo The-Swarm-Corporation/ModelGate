@@ -5,6 +5,7 @@ cached-token usage, so Claude is called through its own API and the results are
 returned as OpenAI SDK objects.
 """
 
+import re
 import time
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -24,6 +25,20 @@ REASONING_BUDGETS = {
     "max": 16000,
     "ultra": 16000,
 }
+
+ADAPTIVE_EFFORTS = {
+    "minimal": "low",
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "xhigh": "xhigh",
+    "max": "max",
+    "ultra": "max",
+}
+
+_CLAUDE_VERSION = re.compile(
+    r"claude-(?:[a-z]+-)?(\d+)(?:-(\d{1,2})(?!\d))?"
+)
 
 STOP_REASONS = {
     "end_turn": "stop",
@@ -81,6 +96,25 @@ def _supports_thinking(model: str) -> bool:
         bool: False for models that predate extended thinking.
     """
     return not model.lower().startswith(_NO_THINKING_PREFIXES)
+
+
+def _adaptive_thinking_only(model: str) -> bool:
+    """Whether a Claude model rejects fixed thinking budgets.
+
+    Claude 5 models and Claude Opus 4.7 and later accept only adaptive
+    thinking, with depth set by ``output_config.effort``.
+
+    Args:
+        model (str): Bare Claude model name.
+
+    Returns:
+        bool: True when ``budget_tokens`` would be rejected.
+    """
+    match = _CLAUDE_VERSION.search(model.lower())
+    if not match:
+        return False
+    version = (int(match.group(1)), int(match.group(2) or 0))
+    return version >= (4, 7)
 
 
 def _parse_data_uri(url: str) -> Optional[Tuple[str, str]]:
@@ -402,10 +436,17 @@ def build_request(
     thinking = extras.get("thinking")
     effort = params.get("reasoning_effort")
     if thinking is None and effort and effort not in ("none", "None"):
-        thinking = {
-            "type": "enabled",
-            "budget_tokens": REASONING_BUDGETS.get(effort, 4096),
-        }
+        if _adaptive_thinking_only(model):
+            thinking = {"type": "adaptive"}
+            body["output_config"] = {
+                "effort": ADAPTIVE_EFFORTS.get(effort, "high"),
+                **(extras.get("output_config") or {}),
+            }
+        else:
+            thinking = {
+                "type": "enabled",
+                "budget_tokens": REASONING_BUDGETS.get(effort, 4096),
+            }
     if thinking and drop_params and not _supports_thinking(model):
         thinking = None
     if thinking:
@@ -464,7 +505,9 @@ def build_request(
         )
 
     for key, value in extras.items():
-        if key == "thinking":
+        if key == "thinking" or (
+            key == "output_config" and key in body
+        ):
             continue
         if key in NATIVE_EXTRAS or not drop_params:
             body[key] = value
