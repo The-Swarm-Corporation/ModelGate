@@ -1,6 +1,7 @@
 """completion and acompletion through OpenAI-compatible providers."""
 
 import functools
+import importlib.util
 import inspect
 import json
 import typing
@@ -975,6 +976,39 @@ class TestClients:
         )
         assert a is b
         assert isinstance(a, openai.AsyncOpenAI)
+
+    @pytest.mark.skipif(
+        importlib.util.find_spec("aiohttp") is None,
+        reason="needs the aiohttp extra",
+    )
+    async def test_async_clients_use_aiohttp_unless_disabled(
+        self, monkeypatch
+    ):
+        from routehub import clients
+
+        def build():
+            clients._clients.clear()
+            clients._aiohttp_client.cache_clear()
+            sdk = clients.openai_client(
+                "openai",
+                "k",
+                None,
+                is_async=True,
+                max_retries=0,
+                ssl_verify=True,
+            )
+            native = clients.http_client(
+                is_async=True, ssl_verify=True
+            )
+            return sdk._client, native
+
+        for client in build():
+            assert isinstance(client, openai.DefaultAioHttpClient)
+        monkeypatch.setenv("ROUTEHUB_USE_AIOHTTP", "0")
+        for client in build():
+            assert not isinstance(client, openai.DefaultAioHttpClient)
+        monkeypatch.undo()
+        clients._aiohttp_client.cache_clear()
 
 
 def test_own_client_needs_no_env_key(monkeypatch, mock_openai):

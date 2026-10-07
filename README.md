@@ -35,6 +35,8 @@ uv add routehub
 pip install "routehub[fast]"
 ```
 
+Install `routehub[aiohttp]` to send async calls through aiohttp. Throughput then stays flat as more requests are in flight, where the default transport slows down. See `ROUTEHUB_USE_AIOHTTP` below.
+
 Set a provider key and make a call:
 
 ```bash
@@ -283,6 +285,7 @@ Also per call: `api_key`, `base_url` or `api_base`, `api_version` (Azure), `cust
 |---|---|
 | Provider keys and bases | See [Supported providers](#supported-providers). |
 | `ROUTEHUB_USE_ORJSON` | RouteHub uses `orjson` for JSON when it is installed (the `fast` extra). Set this to `0`, `false`, `no` or `off` to use the standard `json` module instead. Read once, on first use. |
+| `ROUTEHUB_USE_AIOHTTP` | With openai 3.x and the `aiohttp` extra installed, `acompletion`, `aembedding` and the native Anthropic async path send requests through aiohttp. Set this to `0`, `false`, `no` or `off` to use httpx instead. Read once, on first use. |
 
 ## Error handling
 

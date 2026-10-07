@@ -1,13 +1,19 @@
 """Reusable SDK and HTTP clients, so connections stay pooled across calls."""
 
 import asyncio
+import importlib.util
+import os
 import threading
 from collections import OrderedDict
+from functools import lru_cache
 from typing import Any, Optional, Union
+
+from routehub._json import _OFF_VALUES
 
 _MAX_CLIENTS = 64
 _lock = threading.Lock()
 _clients: "OrderedDict[tuple, Any]" = OrderedDict()
+_closers: "dict[int, Any]" = {}
 
 
 def _loop_id(is_async: bool) -> Optional[Any]:
@@ -48,6 +54,68 @@ def _cached(key: tuple, build) -> Any:
         _clients[key] = client
         while len(_clients) > _MAX_CLIENTS:
             _clients.popitem(last=False)
+    return client
+
+
+@lru_cache(maxsize=None)
+def _aiohttp_client() -> Any:
+    """Return the OpenAI SDK's aiohttp-backed async client class.
+
+    Used when the aiohttp extra is installed on openai 3.x, unless
+    ROUTEHUB_USE_AIOHTTP is 0, false, no or off. Read once, on first use.
+
+    Returns:
+        Any: openai.DefaultAioHttpClient, or None to keep httpx.
+    """
+    setting = os.environ.get("ROUTEHUB_USE_AIOHTTP", "")
+    if setting.strip().lower() in _OFF_VALUES:
+        return None
+    from routehub._http import httpx
+
+    if httpx.__name__ != "httpx2":
+        return None
+    if importlib.util.find_spec("aiohttp") is None:
+        return None
+    import openai
+
+    return openai.DefaultAioHttpClient
+
+
+async def _close_on_shutdown(client: Any) -> Any:
+    """Close client when its event loop shuts down async generators.
+
+    aiohttp warns about every session still open at exit, and
+    asyncio.run closes pending async generators before its loop.
+
+    Args:
+        client (Any): An aiohttp-backed async client.
+
+    Yields:
+        None: Once, so the generator stays registered with the loop.
+    """
+    try:
+        yield
+    finally:
+        _closers.pop(id(client), None)
+        await client.aclose()
+
+
+def _close_with_loop(client: Any) -> Any:
+    """Arrange for client to be closed when the running loop ends.
+
+    Args:
+        client (Any): An aiohttp-backed async client.
+
+    Returns:
+        Any: The same client.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return client
+    closer = _close_on_shutdown(client)
+    _closers[id(client)] = closer
+    asyncio.ensure_future(closer.__anext__())
     return client
 
 
@@ -97,6 +165,7 @@ def openai_client(
     Returns:
         Any: An OpenAI SDK client.
     """
+    aiohttp_client = _aiohttp_client() if is_async else None
     key = (
         "openai",
         provider == "azure",
@@ -109,12 +178,13 @@ def openai_client(
         max_retries,
         ssl_verify,
         keepalive_expiry,
+        aiohttp_client is not None,
     )
 
     def build() -> Any:
         import openai
 
-        factory = (
+        factory = aiohttp_client or (
             openai.DefaultAsyncHttpxClient
             if is_async
             else openai.DefaultHttpxClient
@@ -122,6 +192,8 @@ def openai_client(
         http_client = factory(
             verify=ssl_verify, limits=_limits(keepalive_expiry)
         )
+        if aiohttp_client is not None:
+            _close_with_loop(http_client)
         if provider == "azure":
             cls = (
                 openai.AsyncAzureOpenAI
@@ -163,22 +235,29 @@ def http_client(
     Returns:
         Any: An httpx-compatible Client or AsyncClient.
     """
+    aiohttp_client = _aiohttp_client() if is_async else None
     key = (
         "http",
         is_async,
         _loop_id(is_async),
         ssl_verify,
         keepalive_expiry,
+        aiohttp_client is not None,
     )
 
     def build() -> Any:
         from routehub._http import httpx
 
-        cls = httpx.AsyncClient if is_async else httpx.Client
-        return cls(
+        cls = aiohttp_client or (
+            httpx.AsyncClient if is_async else httpx.Client
+        )
+        client = cls(
             verify=ssl_verify,
             follow_redirects=True,
             limits=_limits(keepalive_expiry),
         )
+        if aiohttp_client is not None:
+            _close_with_loop(client)
+        return client
 
     return _cached(key, build)
