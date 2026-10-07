@@ -83,6 +83,7 @@ _OPTIONS = (
     "num_retries",
     "ssl_verify",
     "keepalive_expiry",
+    "http2",
     "set_verbose",
     "request_timeout",
     "timeout",
@@ -167,6 +168,7 @@ class _Call:
     max_retries: int
     ssl_verify: Union[bool, str]
     keepalive_expiry: float
+    http2: Optional[bool]
     timeout: Any
     verbose: bool
     client: Any
@@ -333,6 +335,7 @@ def _build_call(
         max_retries=int(num_retries),
         ssl_verify=options["ssl_verify"],
         keepalive_expiry=options["keepalive_expiry"],
+        http2=options["http2"],
         timeout=timeout,
         verbose=bool(options["set_verbose"]),
         client=options["client"],
@@ -538,6 +541,7 @@ def _openai_client(call: _Call, is_async: bool) -> Any:
         max_retries=call.max_retries,
         ssl_verify=call.ssl_verify,
         keepalive_expiry=call.keepalive_expiry,
+        http2=call.http2,
         api_version=call.api_version,
         organization=call.organization,
     )
@@ -816,6 +820,7 @@ def _anthropic_complete(call: _Call) -> Any:
         is_async=False,
         ssl_verify=call.ssl_verify,
         keepalive_expiry=call.keepalive_expiry,
+        http2=call.http2,
     )
     response = _anthropic_send(client, url, headers, body, call)
     if not body.get("stream"):
@@ -852,6 +857,7 @@ async def _anthropic_acomplete(call: _Call) -> Any:
         is_async=True,
         ssl_verify=call.ssl_verify,
         keepalive_expiry=call.keepalive_expiry,
+        http2=call.http2,
     )
     response = await _anthropic_asend(
         client, url, headers, body, call
@@ -1068,6 +1074,7 @@ def completion(
     num_retries: Optional[int] = None,
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
+    http2: Optional[bool] = None,
     set_verbose: bool = False,
     request_timeout: float = 600.0,
     timeout: Optional[Union[float, Any]] = None,
@@ -1126,6 +1133,8 @@ def completion(
             connection failures; 2 when omitted.
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
+        http2 (Optional[bool]): Speak HTTP/2 so concurrent calls share a
+            connection; needs the fast extra. None defers to ROUTEHUB_HTTP2.
         set_verbose (bool): Print request and timing details to stderr.
         request_timeout (float): Request timeout in seconds.
         timeout (Optional[Union[float, Any]]): Request timeout; overrides
@@ -1215,6 +1224,7 @@ async def acompletion(
     num_retries: Optional[int] = None,
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
+    http2: Optional[bool] = None,
     set_verbose: bool = False,
     request_timeout: float = 600.0,
     timeout: Optional[Union[float, Any]] = None,
@@ -1266,6 +1276,8 @@ async def acompletion(
         num_retries (Optional[int]): Retries on retryable failures.
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
+        http2 (Optional[bool]): Speak HTTP/2 so concurrent calls share a
+            connection; needs the fast extra. None defers to ROUTEHUB_HTTP2.
         set_verbose (bool): Print request and timing details to stderr.
         request_timeout (float): Request timeout in seconds.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
@@ -1368,6 +1380,7 @@ def _embedding_request(
         ),
         ssl_verify=options["ssl_verify"],
         keepalive_expiry=options["keepalive_expiry"],
+        http2=options["http2"],
         api_version=options["api_version"],
     )
     request = {"model": bare, "input": input}
@@ -1402,6 +1415,7 @@ def embedding(
     num_retries: Optional[int] = None,
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
+    http2: Optional[bool] = None,
     request_timeout: float = 600.0,
     timeout: Optional[Union[float, Any]] = None,
     client: Optional[Any] = None,
@@ -1425,6 +1439,8 @@ def embedding(
         num_retries (Optional[int]): Retries on retryable failures.
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
+        http2 (Optional[bool]): Speak HTTP/2 so concurrent calls share a
+            connection; needs the fast extra. None defers to ROUTEHUB_HTTP2.
         request_timeout (float): Request timeout in seconds.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
         client (Optional[Any]): A preconfigured OpenAI client to use.
@@ -1470,6 +1486,7 @@ async def aembedding(
     num_retries: Optional[int] = None,
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
+    http2: Optional[bool] = None,
     request_timeout: float = 600.0,
     timeout: Optional[Union[float, Any]] = None,
     client: Optional[Any] = None,
@@ -1493,6 +1510,8 @@ async def aembedding(
         num_retries (Optional[int]): Retries on retryable failures.
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
+        http2 (Optional[bool]): Speak HTTP/2 so concurrent calls share a
+            connection; needs the fast extra. None defers to ROUTEHUB_HTTP2.
         request_timeout (float): Request timeout in seconds.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
         client (Optional[Any]): A preconfigured async OpenAI client to use.
