@@ -117,6 +117,24 @@ def _adaptive_thinking_only(model: str) -> bool:
     return version >= (4, 7)
 
 
+def _rejects_forced_tool_choice(model: str) -> bool:
+    """Whether a Claude model rejects a forced tool_choice.
+
+    Claude Opus 5.5, Sonnet 5.5, Fable 5.1 and later return a 400 for a
+    ``tool_choice`` of type ``any`` or ``tool``.
+
+    Args:
+        model (str): Bare Claude model name.
+
+    Returns:
+        bool: True when only ``auto`` and ``none`` are accepted.
+    """
+    match = _CLAUDE_VERSION.search(model.lower())
+    if not match:
+        return False
+    return (int(match.group(1)), int(match.group(2) or 0)) >= (5, 1)
+
+
 def _parse_data_uri(url: str) -> Optional[Tuple[str, str]]:
     """Split a data URI into media type and base64 payload.
 
@@ -485,10 +503,42 @@ def build_request(
         params.get("tool_choice"), params.get("parallel_tool_calls")
     )
     if choice and tools:
+        if choice.get("type") in ("any", "tool") and (
+            _rejects_forced_tool_choice(model)
+        ):
+            if not drop_params:
+                from routehub.exceptions import UnsupportedParamsError
+
+                raise UnsupportedParamsError(
+                    f"{model} does not accept a forced tool_choice "
+                    f"({params.get('tool_choice')!r}). Use "
+                    "tool_choice='auto', or set drop_params=True to "
+                    "send 'auto' instead.",
+                    llm_provider="anthropic",
+                    model=model,
+                )
+            choice = {
+                "type": "auto",
+                **{
+                    k: v
+                    for k, v in choice.items()
+                    if k == "disable_parallel_tool_use"
+                },
+            }
         body["tool_choice"] = choice
 
     schema = _json_schema(params.get("response_format"))
     json_mode = schema is not None
+    if json_mode and _rejects_forced_tool_choice(model):
+        body["output_config"] = {
+            "format": {"type": "json_schema", "schema": schema},
+            **(
+                body.get("output_config")
+                or extras.get("output_config")
+                or {}
+            ),
+        }
+        json_mode = False
     if json_mode:
         body.setdefault("tools", []).append(
             {

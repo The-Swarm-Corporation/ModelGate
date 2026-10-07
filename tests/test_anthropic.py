@@ -382,7 +382,10 @@ class TestBuildRequest:
             == 1
         )
 
-    def test_json_schema_uses_forced_tool(self):
+    @pytest.mark.parametrize(
+        "model", ["claude-sonnet-4-6", "claude-opus-5"]
+    )
+    def test_json_schema_uses_forced_tool(self, model):
         fmt = {
             "type": "json_schema",
             "json_schema": {
@@ -394,7 +397,7 @@ class TestBuildRequest:
             },
         }
         body, json_mode = anthropic.build_request(
-            "claude-sonnet-4-6",
+            model,
             [{"role": "user", "content": "Hi"}],
             {"response_format": fmt},
             {},
@@ -406,6 +409,46 @@ class TestBuildRequest:
             "type": "tool",
             "name": anthropic.JSON_TOOL_NAME,
         }
+
+    @pytest.mark.parametrize(
+        "choice",
+        ["required", {"type": "function", "function": {"name": "a"}}],
+    )
+    def test_forced_tool_choice_on_models_that_reject_it(
+        self, choice
+    ):
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "a",
+                    "parameters": {"type": "object"},
+                },
+            }
+        ]
+        params = {
+            "tools": tools,
+            "tool_choice": choice,
+            "parallel_tool_calls": False,
+        }
+        turns = [{"role": "user", "content": "Go"}]
+        body, _ = anthropic.build_request(
+            "claude-sonnet-5-5", turns, params, {}, True
+        )
+        assert body["tool_choice"] == {
+            "type": "auto",
+            "disable_parallel_tool_use": True,
+        }
+        with pytest.raises(
+            rh.UnsupportedParamsError, match="claude-opus-5-5"
+        ):
+            anthropic.build_request(
+                "claude-opus-5-5", turns, params, {}, False
+            )
+        body, _ = anthropic.build_request(
+            "claude-fable-5", turns, params, {}, False
+        )
+        assert body["tool_choice"]["type"] in ("any", "tool")
 
     def test_messages_url(self):
         assert (
@@ -782,6 +825,44 @@ class TestCompletionThroughAnthropic:
         assert request.headers["anthropic-beta"] == "x"
         assert recorder.last_json["model"] == "claude-sonnet-4-6"
         assert recorder.last_json["max_tokens"] == 100
+
+    def test_json_schema_uses_structured_outputs_on_claude_5_5(
+        self, mock_http
+    ):
+        client, recorder = mock_http(
+            httpx.Response(
+                200,
+                json=message_response(
+                    [{"type": "text", "text": '{"a": 1}'}]
+                ),
+            )
+        )
+        schema = {
+            "type": "object",
+            "properties": {"a": {"type": "integer"}},
+            "required": ["a"],
+            "additionalProperties": False,
+        }
+        response = rh.completion(
+            model="claude-sonnet-5-5",
+            messages=messages(),
+            response_format={
+                "type": "json_schema",
+                "json_schema": {"name": "x", "schema": schema},
+            },
+            reasoning_effort="high",
+            client=client,
+        )
+        assert json.loads(response.choices[0].message.content) == {
+            "a": 1
+        }
+        sent = recorder.last_json
+        assert "tools" not in sent
+        assert "tool_choice" not in sent
+        assert sent["output_config"] == {
+            "format": {"type": "json_schema", "schema": schema},
+            "effort": "high",
+        }
 
     def test_provider_prefix_is_stripped(self, mock_http):
         client, recorder = mock_http(
