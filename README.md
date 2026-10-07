@@ -27,8 +27,10 @@ Install from PyPI:
 
 ```bash
 pip install routehub
-# or
+
+# Or with UV
 uv add routehub
+
 # with orjson for faster JSON handling
 pip install "routehub[fast]"
 ```
