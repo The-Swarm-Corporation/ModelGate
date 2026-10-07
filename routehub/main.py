@@ -685,6 +685,30 @@ def _anthropic_prepare(call: _Call) -> Tuple[str, dict, dict, bool]:
     )
 
 
+def _native_timeout(call: _Call) -> Any:
+    """Return the timeout for the native adapter's build_request.
+
+    A caller-supplied client may come from the other HTTP library, whose
+    Timeout does not accept this library's object, so it gets the plain
+    (connect, read, write, pool) tuple both libraries understand.
+
+    Args:
+        call (_Call): The resolved request.
+
+    Returns:
+        Any: The call's timeout, or a 4-tuple for a caller's client.
+    """
+    timeout = call.timeout
+    if call.client is not None and hasattr(timeout, "as_dict"):
+        return (
+            timeout.connect,
+            timeout.read,
+            timeout.write,
+            timeout.pool,
+        )
+    return timeout
+
+
 def _anthropic_send(
     client: Any, url: str, headers: dict, body: dict, call: _Call
 ) -> Any:
@@ -713,7 +737,7 @@ def _anthropic_send(
                 url,
                 headers=headers,
                 content=dumps(body),
-                timeout=call.timeout,
+                timeout=_native_timeout(call),
             )
             response = client.send(request, stream=stream)
         except (
@@ -773,7 +797,7 @@ async def _anthropic_asend(
                 url,
                 headers=headers,
                 content=dumps(body),
-                timeout=call.timeout,
+                timeout=_native_timeout(call),
             )
             response = await client.send(request, stream=stream)
         except (
