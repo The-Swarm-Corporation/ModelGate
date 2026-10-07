@@ -457,6 +457,32 @@ def build_request(
             max_tokens = budget + 1024
     body["max_tokens"] = max_tokens
 
+    if _adaptive_thinking_only(model):
+        sampling = [
+            key
+            for key, value in (
+                ("temperature", params.get("temperature")),
+                ("top_p", params.get("top_p")),
+                ("top_k", extras.get("top_k")),
+            )
+            if value is not None
+        ]
+        if sampling and not drop_params:
+            from routehub.exceptions import UnsupportedParamsError
+
+            raise UnsupportedParamsError(
+                f"{model} does not accept {', '.join(sampling)}. "
+                "Remove them or pass drop_params=True.",
+                llm_provider="anthropic",
+                model=model,
+            )
+        params = {
+            k: v
+            for k, v in params.items()
+            if k not in ("temperature", "top_p")
+        }
+        extras = {k: v for k, v in extras.items() if k != "top_k"}
+
     temperature = params.get("temperature")
     if temperature is not None:
         body["temperature"] = min(float(temperature), 1.0)
