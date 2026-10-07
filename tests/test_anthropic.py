@@ -289,6 +289,25 @@ class TestBuildRequest:
         }
         assert body["max_tokens"] == 2048 + 1024
 
+    @pytest.mark.parametrize(
+        "model",
+        ["claude-sonnet-5-5", "claude-fable-5-1", "claude-opus-4-8"],
+    )
+    def test_reasoning_effort_becomes_adaptive_thinking(self, model):
+        body, _ = anthropic.build_request(
+            model,
+            [{"role": "user", "content": "Think"}],
+            {"reasoning_effort": "minimal", "max_tokens": 1000},
+            {"output_config": {"format": {"type": "json_schema"}}},
+            False,
+        )
+        assert body["thinking"] == {"type": "adaptive"}
+        assert body["output_config"] == {
+            "effort": "low",
+            "format": {"type": "json_schema"},
+        }
+        assert body["max_tokens"] == 1000
+
     def test_reasoning_effort_none_sends_no_thinking(self):
         assert "thinking" not in build(
             [{"role": "user", "content": "Hi"}],
