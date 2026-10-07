@@ -51,6 +51,24 @@ def _cached(key: tuple, build) -> Any:
     return client
 
 
+def _limits(keepalive_expiry: float) -> Any:
+    """Build pool limits that keep idle connections open between calls.
+
+    Args:
+        keepalive_expiry (float): Seconds an idle connection stays pooled.
+
+    Returns:
+        Any: An httpx-compatible Limits.
+    """
+    from routehub._http import httpx
+
+    return httpx.Limits(
+        max_connections=1000,
+        max_keepalive_connections=100,
+        keepalive_expiry=keepalive_expiry,
+    )
+
+
 def openai_client(
     provider: str,
     api_key: Optional[str],
@@ -61,6 +79,7 @@ def openai_client(
     ssl_verify: Union[bool, str],
     api_version: Optional[str] = None,
     organization: Optional[str] = None,
+    keepalive_expiry: float = 60.0,
 ) -> Any:
     """Return a cached OpenAI or Azure OpenAI client.
 
@@ -73,6 +92,7 @@ def openai_client(
         ssl_verify (Union[bool, str]): TLS verification flag or CA bundle path.
         api_version (Optional[str]): Azure API version.
         organization (Optional[str]): OpenAI organization id.
+        keepalive_expiry (float): Seconds an idle connection stays pooled.
 
     Returns:
         Any: An OpenAI SDK client.
@@ -88,19 +108,20 @@ def openai_client(
         organization,
         max_retries,
         ssl_verify,
+        keepalive_expiry,
     )
 
     def build() -> Any:
         import openai
 
-        http_client = None
-        if ssl_verify is not True:
-            factory = (
-                openai.DefaultAsyncHttpxClient
-                if is_async
-                else openai.DefaultHttpxClient
-            )
-            http_client = factory(verify=ssl_verify)
+        factory = (
+            openai.DefaultAsyncHttpxClient
+            if is_async
+            else openai.DefaultHttpxClient
+        )
+        http_client = factory(
+            verify=ssl_verify, limits=_limits(keepalive_expiry)
+        )
         if provider == "azure":
             cls = (
                 openai.AsyncAzureOpenAI
@@ -127,23 +148,37 @@ def openai_client(
 
 
 def http_client(
-    *, is_async: bool, ssl_verify: Union[bool, str]
+    *,
+    is_async: bool,
+    ssl_verify: Union[bool, str],
+    keepalive_expiry: float = 60.0,
 ) -> Any:
     """Return a cached raw HTTP client for native provider adapters.
 
     Args:
         is_async (bool): Whether to build the async client.
         ssl_verify (Union[bool, str]): TLS verification flag or CA bundle path.
+        keepalive_expiry (float): Seconds an idle connection stays pooled.
 
     Returns:
         Any: An httpx-compatible Client or AsyncClient.
     """
-    key = ("http", is_async, _loop_id(is_async), ssl_verify)
+    key = (
+        "http",
+        is_async,
+        _loop_id(is_async),
+        ssl_verify,
+        keepalive_expiry,
+    )
 
     def build() -> Any:
         from routehub._http import httpx
 
         cls = httpx.AsyncClient if is_async else httpx.Client
-        return cls(verify=ssl_verify, follow_redirects=True)
+        return cls(
+            verify=ssl_verify,
+            follow_redirects=True,
+            limits=_limits(keepalive_expiry),
+        )
 
     return _cached(key, build)
