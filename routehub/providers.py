@@ -100,6 +100,11 @@ PROVIDERS = {
             ("MISTRAL_API_BASE",),
         ),
         Provider(
+            "cohere",
+            "https://api.cohere.ai/compatibility/v1",
+            ("COHERE_API_KEY", "CO_API_KEY"),
+        ),
+        Provider(
             "fireworks_ai",
             "https://api.fireworks.ai/inference/v1",
             ("FIREWORKS_API_KEY", "FIREWORKS_AI_API_KEY"),
@@ -197,6 +202,7 @@ _ALIASES = {
     "google_ai_studio": "gemini",
     "x-ai": "xai",
     "vllm": "hosted_vllm",
+    "cohere_chat": "cohere",
 }
 
 _PREFIX_PROVIDERS = (
@@ -230,6 +236,7 @@ _PREFIX_PROVIDERS = (
         ),
         "mistral",
     ),
+    (("command-",), "cohere"),
 )
 
 
