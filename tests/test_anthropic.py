@@ -388,6 +388,41 @@ class TestBuildRequest:
             == 0.9
         )
 
+    @pytest.mark.parametrize(
+        "model",
+        ["claude-opus-5-5", "claude-sonnet-5-5", "claude-opus-4-7"],
+    )
+    def test_sampling_parameters_are_refused_by_new_models(
+        self, model
+    ):
+        def request(drop_params):
+            return anthropic.build_request(
+                model,
+                [{"role": "user", "content": "Hi"}],
+                {"temperature": 0.2, "top_p": 0.9},
+                {"top_k": 5},
+                drop_params,
+            )[0]
+
+        body = request(True)
+        assert not {"temperature", "top_p", "top_k"} & body.keys()
+        with pytest.raises(
+            rh.UnsupportedParamsError,
+            match="temperature, top_p, top_k",
+        ):
+            request(False)
+        old = build(
+            [{"role": "user", "content": "Hi"}],
+            extras={"top_k": 5},
+            temperature=0.2,
+            top_p=0.9,
+        )
+        assert (old["temperature"], old["top_p"], old["top_k"]) == (
+            0.2,
+            0.9,
+            5,
+        )
+
     def test_extras_respect_drop_params(self):
         extras = {"top_k": 5, "unknown_field": 1}
         assert build(
