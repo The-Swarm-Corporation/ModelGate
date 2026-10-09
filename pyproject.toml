@@ -1,6 +1,6 @@
 [project]
 name = "routehub"
-version = "0.1.0"
+version = "0.2.0"
 description = "A fast, lightweight LLM gateway with a litellm-compatible API, built on the OpenAI SDK."
 readme = "README.md"
 license = "Apache-2.0"

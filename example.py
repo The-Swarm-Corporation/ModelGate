@@ -293,9 +293,7 @@ def token_counting() -> None:
         },
     ]
     print(
-        routehub.token_counter(
-            model=OPENAI_MODEL, messages=messages
-        ),
+        routehub.token_counter(model=OPENAI_MODEL, messages=messages),
         "tokens",
     )
 
