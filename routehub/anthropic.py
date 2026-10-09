@@ -435,13 +435,11 @@ def build_request(
 
     thinking = extras.get("thinking")
     effort = params.get("reasoning_effort")
-    if thinking is None and effort and effort not in ("none", "None"):
+    if effort in ("none", "None"):
+        effort = None
+    if thinking is None and effort:
         if _adaptive_thinking_only(model):
             thinking = {"type": "adaptive"}
-            body["output_config"] = {
-                "effort": ADAPTIVE_EFFORTS.get(effort, "high"),
-                **(extras.get("output_config") or {}),
-            }
         else:
             thinking = {
                 "type": "enabled",
@@ -451,6 +449,11 @@ def build_request(
         thinking = None
     if thinking:
         body["thinking"] = thinking
+        if effort and thinking.get("type") == "adaptive":
+            body["output_config"] = {
+                "effort": ADAPTIVE_EFFORTS.get(effort, "high"),
+                **(extras.get("output_config") or {}),
+            }
         budget = thinking.get("budget_tokens") or 0
         # Anthropic rejects a budget that is not below max_tokens.
         if budget and max_tokens <= budget:

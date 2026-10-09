@@ -326,6 +326,29 @@ class TestBuildRequest:
         assert body["thinking"]["budget_tokens"] == 5000
         assert body["max_tokens"] == 20000
 
+    @pytest.mark.parametrize(
+        ("output_config", "expected"),
+        [
+            (None, {"effort": "high"}),
+            ({"effort": "low"}, {"effort": "low"}),
+        ],
+    )
+    def test_reasoning_effort_sets_effort_for_explicit_adaptive_thinking(
+        self, output_config, expected
+    ):
+        extras = {"thinking": {"type": "adaptive"}}
+        if output_config:
+            extras["output_config"] = output_config
+        body, _ = anthropic.build_request(
+            "claude-opus-4-8",
+            [{"role": "user", "content": "Think"}],
+            {"reasoning_effort": "high", "max_tokens": 1000},
+            extras,
+            False,
+        )
+        assert body["thinking"] == {"type": "adaptive"}
+        assert body["output_config"] == expected
+
     def test_drop_params_removes_thinking_for_old_models(self):
         body, _ = anthropic.build_request(
             "claude-3-5-haiku-20241022",
