@@ -698,6 +698,25 @@ class TestErrors:
                 model="gpt-4o", messages=USER, client=client
             )
 
+    def test_error_event_inside_a_stream_maps(self, mock_openai):
+        error = {"error": {"code": 429, "message": "Rate limit"}}
+        client, _ = mock_openai(
+            httpx.Response(
+                200,
+                content=(
+                    chunk({"content": "Hi"})
+                    + f"data: {json.dumps(error)}\n\n"
+                ).encode(),
+                headers={"content-type": "text/event-stream"},
+            )
+        )
+        stream = rh.completion(
+            model="gpt-4o", messages=USER, stream=True, client=client
+        )
+        assert next(stream).choices[0].delta.content == "Hi"
+        with pytest.raises(rh.RateLimitError):
+            next(stream)
+
 
 class TestMockResponse:
     def test_mock_text(self):
