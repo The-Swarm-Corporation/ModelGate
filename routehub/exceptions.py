@@ -311,6 +311,17 @@ def map_exception(
             response=error.response,
             body=error.body,
         )
+    if type(error) is openai.APIError:
+        body = error.body if isinstance(error.body, dict) else {}
+        code = str(body.get("code"))
+        status = int(code) if code.isdecimal() else 500
+        return exception_for_status(
+            status if 400 <= status < 600 else 500,
+            error.message,
+            llm_provider,
+            model,
+            body=error.body,
+        )
     if isinstance(error, httpx.TimeoutException):
         return Timeout(
             str(error) or "Request timed out.",
