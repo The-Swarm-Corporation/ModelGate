@@ -104,6 +104,23 @@ def test_fallback_key_variables(monkeypatch):
     )
 
 
+def test_cohere_uses_the_compatibility_endpoint(monkeypatch):
+    monkeypatch.setenv("CO_API_KEY", "co-key")
+    for model in (
+        "cohere/command-a-03-2025",
+        "cohere_chat/command-a-03-2025",
+        "command-a-03-2025",
+    ):
+        assert rh.get_llm_provider(model) == (
+            "command-a-03-2025",
+            "cohere",
+            "co-key",
+            "https://api.cohere.ai/compatibility/v1",
+        )
+    monkeypatch.setenv("COHERE_API_KEY", "cohere-key")
+    assert rh.get_llm_provider("command-r")[2] == "cohere-key"
+
+
 def test_local_servers_get_a_placeholder_key_and_v1_suffix(
     monkeypatch,
 ):
