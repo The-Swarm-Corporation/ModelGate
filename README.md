@@ -6,6 +6,8 @@
   <a href="https://docs.swarms.world">Documentation</a>
   <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
   <a href="https://swarms.world">Swarms Marketplace</a>
+  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+  <a href="docs/routehub.pdf">Paper</a>
 </p>
 
 <p align="left">
@@ -109,6 +111,8 @@ Measured on the same machine (macOS, Python 3.12) against litellm 1.76.1.
 - **Installed packages** counts the fully resolved dependency tree of each package.
 
 Fast startup matters most for serverless functions, CLI tools, test suites and short-lived agent processes, where litellm's import alone can outweigh the work being done.
+
+For the full benchmark, covering cold start, per-call overhead, streaming, async throughput and connection reuse against LiteLLM, any-llm, aisuite and the bare OpenAI and Anthropic SDKs, see the [paper](#paper).
 
 ## Supported providers
 
@@ -407,6 +411,23 @@ uv run ruff check .                  # lint
 
 ```bash
 uv run python tests/live_smoke.py
+```
+
+## Paper
+
+[RouteHub: A Low-Overhead, SDK-Native LLM Gateway for Agentic Workloads](docs/routehub.pdf) describes RouteHub's design and measures it against LiteLLM, any-llm, aisuite and the bare provider SDKs, each in its own environment against an instant mock server, plus connection reuse over a real network.
+
+If you use RouteHub in your research, please cite:
+
+```bibtex
+@misc{gomez2026routehub,
+  title        = {RouteHub: A Low-Overhead, SDK-Native LLM Gateway for Agentic Workloads},
+  author       = {Gomez, Kye and Grandhi, Shryuk and Gazali, Ayaan},
+  year         = {2026},
+  month        = oct,
+  howpublished = {\url{https://github.com/The-Swarm-Corporation/RouteHub/blob/main/docs/routehub.pdf}},
+  note         = {The Swarm Corporation}
+}
 ```
 
 ## License
