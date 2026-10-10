@@ -1514,3 +1514,79 @@ async def aembedding(
         if mapped is error:
             raise
         raise mapped from error
+
+
+def _responses_request(
+    model: str, kwargs: dict, is_async: bool
+) -> Tuple[_Call, Any, dict]:
+    """Resolve the client and create() arguments for a Responses call.
+
+    Args:
+        model (str): Model string.
+        kwargs (dict): Gateway options and Responses API parameters.
+        is_async (bool): Whether to use the async client.
+
+    Returns:
+        Tuple[_Call, Any, dict]: Call, responses resource, create() args.
+    """
+    spec = inspect.signature(completion).parameters
+    options = {n: kwargs.pop(n, spec[n].default) for n in _OPTIONS}
+    if options["mock_response"] is not None:
+        raise NotImplementedError("mock_response is not supported")
+    input = kwargs.get("input")
+    call = _build_call(model, [input], {}, options, kwargs)
+    resource = _openai_client(call, is_async).responses
+    request = {**call.extras, "model": call.bare}
+    if kwargs.get("metadata") is not None:
+        request["metadata"] = kwargs["metadata"]
+    if call.drop_params:
+        accepted = _sdk_params(resource)
+        request = {k: v for k, v in request.items() if k in accepted}
+    _log(call.verbose, f"responses {call.provider} {call.bare}")
+    extra_body = dict(call.extra_body or {})
+    request = _create_kwargs(resource, request, extra_body, call)
+    return call, resource, request
+
+
+def responses(model: str, **kwargs: Any) -> Any:
+    """Call a model through the OpenAI Responses API.
+
+    Args:
+        model (str): Provider-prefixed or bare model name.
+        **kwargs (Any): completion's options and Responses API parameters.
+
+    Returns:
+        Any: An OpenAI Response, or its event stream when stream is on.
+    """
+    from routehub.exceptions import map_exception
+
+    call, resource, request = _responses_request(model, kwargs, False)
+    try:
+        return resource.create(**request)
+    except Exception as error:
+        mapped = map_exception(error, call.provider, call.model)
+        if mapped is error:
+            raise
+        raise mapped from error
+
+
+async def aresponses(model: str, **kwargs: Any) -> Any:
+    """Async form of responses, with the same arguments.
+
+    Args:
+        model (str): Provider-prefixed or bare model name.
+        **kwargs (Any): Gateway options and Responses API parameters.
+
+    Returns:
+        Any: An OpenAI Response, or its async event stream.
+    """
+    from routehub.exceptions import map_exception
+
+    call, resource, request = _responses_request(model, kwargs, True)
+    try:
+        return await resource.create(**request)
+    except Exception as error:
+        mapped = map_exception(error, call.provider, call.model)
+        if mapped is error:
+            raise
+        raise mapped from error
