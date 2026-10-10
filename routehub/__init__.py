@@ -10,6 +10,8 @@ _LAZY = {
     "acompletion": "routehub.main",
     "embedding": "routehub.main",
     "aembedding": "routehub.main",
+    "responses": "routehub.main",
+    "aresponses": "routehub.main",
     "get_reasoning_efforts": "routehub.main",
     "REASONING_EFFORTS": "routehub.main",
     "get_llm_provider": "routehub.providers",

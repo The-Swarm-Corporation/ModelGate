@@ -1003,3 +1003,15 @@ def test_own_client_needs_no_env_key(monkeypatch, mock_openai):
         model="gpt-4o", messages=USER, client=client
     )
     assert response.choices[0].message.content == "from my client"
+
+
+def test_responses_returns_a_response_and_maps_errors(mock_openai):
+    client, recorder = mock_openai(
+        httpx.Response(200, json={"id": "resp_1", "output": []}),
+        httpx.Response(429, json={"error": {"message": "Busy"}}),
+    )
+    reply = rh.responses("openai/gpt-5.4", input="hi", client=client)
+    assert isinstance(reply, openai.types.responses.Response)
+    assert recorder.last_json == {"model": "gpt-5.4", "input": "hi"}
+    with pytest.raises(rh.RateLimitError):
+        rh.responses("gpt-5.4", input="hi", client=client)
