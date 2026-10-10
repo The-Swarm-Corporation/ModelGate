@@ -85,6 +85,7 @@ _OPTIONS = (
     "keepalive_expiry",
     "set_verbose",
     "request_timeout",
+    "connect_timeout",
     "timeout",
     "mock_response",
     "client",
@@ -239,6 +240,26 @@ def _split_args(
     return model, messages, params, options, kwargs
 
 
+def _timeout(options: Dict[str, Any]) -> Any:
+    """Build the per-call timeout, with a short limit on connecting.
+
+    Args:
+        options (Dict[str, Any]): Gateway options holding timeout,
+            request_timeout and connect_timeout.
+
+    Returns:
+        Any: An httpx Timeout, or the caller's own timeout object unchanged.
+    """
+    timeout = options["timeout"]
+    if timeout is None:
+        timeout = options["request_timeout"]
+    if not isinstance(timeout, (int, float)):
+        return timeout
+    from routehub._http import httpx
+
+    return httpx.Timeout(timeout, connect=options["connect_timeout"])
+
+
 def _build_call(
     model: str,
     messages: Any,
@@ -297,9 +318,7 @@ def _build_call(
         num_retries = kwargs.pop("max_retries", None)
     if num_retries is None:
         num_retries = DEFAULT_NUM_RETRIES
-    timeout = options["timeout"]
-    if timeout is None:
-        timeout = options["request_timeout"]
+    timeout = _timeout(options)
     organization = kwargs.pop("organization", None)
 
     if params.get("response_format") is not None:
@@ -666,6 +685,30 @@ def _anthropic_prepare(call: _Call) -> Tuple[str, dict, dict, bool]:
     )
 
 
+def _native_timeout(call: _Call) -> Any:
+    """Return the timeout for the native adapter's build_request.
+
+    A caller-supplied client may come from the other HTTP library, whose
+    Timeout does not accept this library's object, so it gets the plain
+    (connect, read, write, pool) tuple both libraries understand.
+
+    Args:
+        call (_Call): The resolved request.
+
+    Returns:
+        Any: The call's timeout, or a 4-tuple for a caller's client.
+    """
+    timeout = call.timeout
+    if call.client is not None and hasattr(timeout, "as_dict"):
+        return (
+            timeout.connect,
+            timeout.read,
+            timeout.write,
+            timeout.pool,
+        )
+    return timeout
+
+
 def _anthropic_send(
     client: Any, url: str, headers: dict, body: dict, call: _Call
 ) -> Any:
@@ -694,7 +737,7 @@ def _anthropic_send(
                 url,
                 headers=headers,
                 content=dumps(body),
-                timeout=call.timeout,
+                timeout=_native_timeout(call),
             )
             response = client.send(request, stream=stream)
         except (
@@ -754,7 +797,7 @@ async def _anthropic_asend(
                 url,
                 headers=headers,
                 content=dumps(body),
-                timeout=call.timeout,
+                timeout=_native_timeout(call),
             )
             response = await client.send(request, stream=stream)
         except (
@@ -1070,6 +1113,7 @@ def completion(
     keepalive_expiry: float = 60.0,
     set_verbose: bool = False,
     request_timeout: float = 600.0,
+    connect_timeout: float = 5.0,
     timeout: Optional[Union[float, Any]] = None,
     mock_response: Optional[Union[str, BaseException]] = None,
     client: Optional[Any] = None,
@@ -1128,6 +1172,8 @@ def completion(
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
         set_verbose (bool): Print request and timing details to stderr.
         request_timeout (float): Request timeout in seconds.
+        connect_timeout (float): Seconds allowed to connect; 5 by
+            default, so an unreachable host fails fast.
         timeout (Optional[Union[float, Any]]): Request timeout; overrides
             request_timeout when set.
         mock_response (Optional[Union[str, BaseException]]): Return this text,
@@ -1217,6 +1263,7 @@ async def acompletion(
     keepalive_expiry: float = 60.0,
     set_verbose: bool = False,
     request_timeout: float = 600.0,
+    connect_timeout: float = 5.0,
     timeout: Optional[Union[float, Any]] = None,
     mock_response: Optional[Union[str, BaseException]] = None,
     client: Optional[Any] = None,
@@ -1268,6 +1315,8 @@ async def acompletion(
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
         set_verbose (bool): Print request and timing details to stderr.
         request_timeout (float): Request timeout in seconds.
+        connect_timeout (float): Seconds allowed to connect; 5 by
+            default, so an unreachable host fails fast.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
         mock_response (Optional[Union[str, BaseException]]): Canned reply.
         client (Optional[Any]): A preconfigured async client to use.
@@ -1377,10 +1426,7 @@ def _embedding_request(
         request["encoding_format"] = encoding_format
     if user is not None:
         request["user"] = user
-    timeout = options["timeout"]
-    request["timeout"] = (
-        options["request_timeout"] if timeout is None else timeout
-    )
+    request["timeout"] = _timeout(options)
     request["extra_headers"] = options["extra_headers"]
     request["extra_body"] = options["extra_body"]
     return client.embeddings, request, provider
@@ -1403,6 +1449,7 @@ def embedding(
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
     request_timeout: float = 600.0,
+    connect_timeout: float = 5.0,
     timeout: Optional[Union[float, Any]] = None,
     client: Optional[Any] = None,
     **kwargs: Any,
@@ -1426,6 +1473,8 @@ def embedding(
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
         request_timeout (float): Request timeout in seconds.
+        connect_timeout (float): Seconds allowed to connect; 5 by
+            default, so an unreachable host fails fast.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
         client (Optional[Any]): A preconfigured OpenAI client to use.
         **kwargs (Any): Ignored litellm options.
@@ -1471,6 +1520,7 @@ async def aembedding(
     ssl_verify: Union[bool, str] = True,
     keepalive_expiry: float = 60.0,
     request_timeout: float = 600.0,
+    connect_timeout: float = 5.0,
     timeout: Optional[Union[float, Any]] = None,
     client: Optional[Any] = None,
     **kwargs: Any,
@@ -1494,6 +1544,8 @@ async def aembedding(
         ssl_verify (Union[bool, str]): TLS verification, or a CA bundle path.
         keepalive_expiry (float): Seconds an idle pooled connection stays open.
         request_timeout (float): Request timeout in seconds.
+        connect_timeout (float): Seconds allowed to connect; 5 by
+            default, so an unreachable host fails fast.
         timeout (Optional[Union[float, Any]]): Overrides request_timeout.
         client (Optional[Any]): A preconfigured async OpenAI client to use.
         **kwargs (Any): Ignored litellm options.
