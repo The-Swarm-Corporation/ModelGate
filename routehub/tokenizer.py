@@ -150,6 +150,8 @@ def token_counter(
         return len(encode(model, text))
     total = 0
     for message in messages or []:
+        if hasattr(message, "model_dump"):
+            message = message.model_dump(exclude_none=True)
         total += _TOKENS_PER_MESSAGE
         total += len(
             encode(model, _content_text(message.get("content")))
