@@ -829,6 +829,7 @@ class StreamTranslator:
         self._tool_index = -1
         self._block_kind: Dict[int, str] = {}
         self._block_tool: Dict[int, int] = {}
+        self._unstreamed_input: Dict[int, Any] = {}
 
     def _chunk(
         self,
@@ -914,6 +915,25 @@ class StreamTranslator:
                 }
             )
             return [self._chunk({}, finish_reason=finish)]
+        if kind == "content_block_stop":
+            index = data.get("index", 0)
+            if index not in self._unstreamed_input:
+                return []
+            arguments = dumps_str(self._unstreamed_input.pop(index))
+            if self._block_kind.get(index) == "json_tool":
+                return [self._chunk({"content": arguments})]
+            return [
+                self._chunk(
+                    {
+                        "tool_calls": [
+                            {
+                                "index": self._block_tool[index],
+                                "function": {"arguments": arguments},
+                            }
+                        ]
+                    }
+                )
+            ]
         if kind == "message_stop":
             return [self._usage_chunk()] if self.include_usage else []
         if kind == "error":
@@ -934,6 +954,7 @@ class StreamTranslator:
         kind = block.get("type")
         self._block_kind[index] = kind
         if kind == "tool_use":
+            self._unstreamed_input[index] = block.get("input") or {}
             if self.json_mode and block.get("name") == JSON_TOOL_NAME:
                 self._block_kind[index] = "json_tool"
                 return []
@@ -989,6 +1010,8 @@ class StreamTranslator:
             return [self._chunk({"content": delta.get("text", "")})]
         if kind == "input_json_delta":
             partial = delta.get("partial_json", "")
+            if partial:
+                self._unstreamed_input.pop(index, None)
             if self._block_kind.get(index) == "json_tool":
                 return (
                     [self._chunk({"content": partial})]

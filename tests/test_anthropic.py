@@ -801,6 +801,45 @@ class TestStreamTranslation:
         assert usage.completion_tokens == 42
         assert usage.prompt_tokens_details.cached_tokens == 5
 
+    @pytest.mark.parametrize(
+        "json_mode,name",
+        [(False, "now"), (True, anthropic.JSON_TOOL_NAME)],
+    )
+    def test_tool_without_arguments_streams_empty_object(
+        self, json_mode, name
+    ):
+        translator = anthropic.StreamTranslator(
+            "m", include_usage=False, json_mode=json_mode
+        )
+        block = {"type": "tool_use", "id": "t1", "name": name}
+        events = [
+            (
+                "content_block_start",
+                {"index": 0, "content_block": {**block, "input": {}}},
+            ),
+            (
+                "content_block_delta",
+                {
+                    "index": 0,
+                    "delta": {
+                        "type": "input_json_delta",
+                        "partial_json": "",
+                    },
+                },
+            ),
+            ("content_block_stop", {"index": 0}),
+        ]
+        chunks = [
+            c for e, d in events for c in translator.handle(e, d)
+        ]
+        text, _, names, args, _, _ = collect(chunks)
+        if json_mode:
+            assert names == {}
+            assert json.loads(text) == {}
+        else:
+            assert names == {0: "now"}
+            assert json.loads(args[0]) == {}
+
     def test_no_usage_chunk_unless_requested(self):
         translator = anthropic.StreamTranslator(
             "m", include_usage=False, json_mode=False
