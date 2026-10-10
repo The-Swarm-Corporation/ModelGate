@@ -391,6 +391,60 @@ class TestRequestShaping:
             "content": "Hey",
         }
 
+    def test_response_message_objects_are_accepted_as_history(
+        self, mock_openai, mock_http
+    ):
+        message = openai.types.chat.ChatCompletionMessage(
+            role="assistant",
+            content="Hey",
+            reasoning_content="r",
+            thinking_blocks=[
+                {
+                    "type": "thinking",
+                    "thinking": "r",
+                    "signature": "s",
+                }
+            ],
+        )
+        history = USER + [
+            message,
+            {"role": "user", "content": "More"},
+        ]
+        client, recorder = mock_openai(ok())
+        rh.completion(
+            model="deepseek/deepseek-chat",
+            messages=history,
+            client=client,
+            api_key="k",
+        )
+        assert recorder.last_json["messages"][1] == {
+            "role": "assistant",
+            "content": "Hey",
+        }
+        reply = {
+            "id": "msg_1",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "OK"}],
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+        }
+        claude, recorder = mock_http(httpx.Response(200, json=reply))
+        rh.completion(
+            model="claude-sonnet-4-6",
+            messages=history,
+            client=claude,
+            api_key="k",
+        )
+        sent = recorder.last_json["messages"][1]["content"]
+        assert [b["type"] for b in sent] == ["thinking", "text"]
+        assert rh.token_counter(
+            model="gpt-4o", messages=[message]
+        ) == rh.token_counter(
+            model="gpt-4o",
+            messages=[message.model_dump(exclude_none=True)],
+        )
+
     def test_pydantic_response_format_becomes_json_schema(
         self, mock_openai
     ):

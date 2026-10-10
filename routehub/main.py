@@ -324,7 +324,14 @@ def _build_call(
         api_base=api_base,
         api_version=api_version,
         organization=organization,
-        messages=list(messages),
+        messages=[
+            (
+                m.model_dump(exclude_none=True)
+                if hasattr(m, "model_dump")
+                else m
+            )
+            for m in messages
+        ],
         params=params,
         extras=extras,
         extra_headers=headers or None,
